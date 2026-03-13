@@ -1,50 +1,78 @@
-# Welcome to your Expo app 👋
+# 📚 BookMesh
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Expo](https://img.shields.io/badge/Expo-React%20Native-black)
+![P2P](https://img.shields.io/badge/network-P2P-green)
+![Status](https://img.shields.io/badge/status-Development-orange)
 
-## Get started
+**BookMesh** est une application mobile de **bibliothèque décentralisée P2P** permettant de partager des livres et documents directement entre utilisateurs.
 
-1. Install dependencies
+Les livres sont **hébergés sur les appareils des utilisateurs** et échangés via un réseau **pair-à-pair**, sans stockage centralisé.
 
-   ```bash
-   npm install
-   ```
+---
 
-2. Start the app
+# 🚀 Fonctionnalités
 
-   ```bash
-   npx expo start
-   ```
+### 📖 Bibliothèque locale
+- importer des livres (PDF, EPUB)
+- stocker les livres localement sur l’appareil
+- lire les livres directement dans l’application
 
-In the output, you'll find options to open the app in a
+### 🌍 Catalogue réseau public
+- voir les livres partagés publiquement sur le réseau
+- rechercher des livres par titre ou auteur
+- afficher le nombre de sources disponibles
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### ⬇️ Téléchargement P2P
+- téléchargement direct entre utilisateurs
+- transfert de fichiers pair-à-pair
+- vérification d’intégrité des fichiers
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### 🔗 Connexion entre utilisateurs
+- invitation via QR code ou lien
+- ajout de pairs
+- connexion au réseau P2P
 
-## Get a fresh project
+### 🔄 Synchronisation du catalogue
+- diffusion des livres publics sur le réseau
+- mise à jour automatique du catalogue partagé
 
-When you're ready, run:
+---
 
-```bash
-npm run reset-project
-```
+# 🧠 Technologies utilisées
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Mobile
+- **Expo**
+- **React Native**
+- **TypeScript**
 
-## Learn more
+### Stockage local
+- **SQLite**
+- **Expo FileSystem**
+- **SecureStore**
 
-To learn more about developing your project with Expo, look at the following resources:
+### Réseau P2P
+- **libp2p**
+- **WebRTC**
+- **GossipSub**
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Sécurité
+- **Noise encryption**
+- **SHA-256 hashing**
 
-## Join the community
+---
 
-Join our community of developers creating universal apps.
+# ⚠️ Note
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+BookMesh est conçu pour partager **du contenu autorisé** :
+
+- livres libres de droits
+- documents éducatifs
+- publications open source
+- documents personnels
+
+---
+
+# 📜 Licence
+
+MIT License
