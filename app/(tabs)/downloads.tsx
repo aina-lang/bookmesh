@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, FlatList, StyleSheet, Text, TouchableOpacity,
+  View, FlatList, StyleSheet, Text, TouchableOpacity, Image,
 } from 'react-native';
 import { useModal } from '@/core/context/ModalContext';
-import { Colors } from '@/constants/theme';
+import { Colors, FormatColors } from '@/constants/theme';
 import { CheckCircle, Download, XCircle, AlertCircle, Loader, Trash2, Library } from 'lucide-react-native';
 import { DownloadStore, ActiveDownload } from '@/core/store/downloadStore';
 import { Storage, BookMetadata } from '@/core/storage/storage';
@@ -30,11 +30,28 @@ function DownloadCard({ item, onRemove }: { item: ActiveDownload; onRemove: () =
   const Icon = cfg.Icon;
   const pct = Math.round(item.progress * 100);
 
+  const catColor = C.muted;
+  const format = item.format || '...';
+  const badgeColor = item.format ? (FormatColors[item.format.toLowerCase()] || FormatColors.unknown) : FormatColors.unknown;
+
   return (
     <View style={styles.card}>
       <View style={styles.cardTop}>
-        <View style={[styles.statusIcon, { backgroundColor: cfg.color + '15' }]}>
-          <Icon size={18} color={cfg.color} />
+        <View style={[styles.cover, { backgroundColor: catColor + '15', borderColor: catColor + '33', borderWidth: 1 }]}>
+          {item.thumbnailMessageId ? (
+            <Image 
+              source={{ uri: `https://hipster-api.fr/api/telegram/thumbnail/${item.thumbnailMessageId}` }} 
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+            />
+          ) : (
+            <Text style={[styles.coverLetter, { color: catColor }]}>
+              {item.bookTitle.charAt(0).toUpperCase()}
+            </Text>
+          )}
+          <View style={[styles.formatBadge, { backgroundColor: badgeColor }]}>
+            <Text style={styles.formatBadgeText}>{format.toUpperCase()}</Text>
+          </View>
         </View>
         <View style={styles.info}>
           <Text style={styles.title} numberOfLines={1}>{item.bookTitle}</Text>
@@ -62,11 +79,25 @@ function DownloadCard({ item, onRemove }: { item: ActiveDownload; onRemove: () =
 }
 
 function LocalBookCard({ item, onPress, onDelete }: { item: BookMetadata, onPress: () => void, onDelete: () => void }) {
+  const catColor = C.muted;
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardTop}>
-        <View style={[styles.statusIcon, { backgroundColor: C.success + '15' }]}>
-          <CheckCircle size={18} color={C.success} />
+        <View style={[styles.cover, { backgroundColor: catColor + '15', borderColor: catColor + '33', borderWidth: 1 }]}>
+          {item.thumbnailMessageId ? (
+            <Image 
+              source={{ uri: `https://hipster-api.fr/api/telegram/thumbnail/${item.thumbnailMessageId}` }} 
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+            />
+          ) : (
+            <Text style={[styles.coverLetter, { color: catColor }]}>
+              {item.title.charAt(0).toUpperCase()}
+            </Text>
+          )}
+          <View style={[styles.formatBadge, { backgroundColor: FormatColors[item.format.toLowerCase()] || FormatColors.unknown }]}>
+            <Text style={styles.formatBadgeText}>{item.format.toUpperCase()}</Text>
+          </View>
         </View>
         <View style={styles.info}>
           <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
@@ -180,6 +211,25 @@ const styles = StyleSheet.create({
     borderColor: C.border,
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  cover: {
+    width: 36,
+    height: 48,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  coverLetter: { fontSize: 20, fontWeight: 'bold' },
+  formatBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+    borderTopLeftRadius: 4,
+  },
+  formatBadgeText: { color: '#fff', fontSize: 7, fontWeight: '900' },
   statusIcon: {
     width: 36,
     height: 36,

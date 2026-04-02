@@ -32,23 +32,7 @@ export const Colors = {
   },
 };
 
-// Category accent colors — Plus élégants et sobres
-export const CategoryColors: Record<string, string> = {
-  Roman: "#D1D1D6",
-  "Science-Fiction": "#64D2FF",
-  Policier: "#FF375F",
-  Fantasy: "#BF5AF2",
-  Manga: "#FF9F0A",
-  BD: "#FFD60A",
-  Biographie: "#30D158",
-  Histoire: "#C5A572",
-  Informatique: "#5E5CE6",
-  Sciences: "#4ADE80",
-  Art: "#FF9F0A",
-  Autre: "#8E8E93",
-};
 
-export const CATEGORIES = Object.keys(CategoryColors);
  
 export const FormatColors: Record<string, string> = {
   pdf: "#FF453A", // Red

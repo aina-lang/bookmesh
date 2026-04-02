@@ -20,7 +20,7 @@ export default function RootLayout() {
         <ConnectivityBanner />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
-          {/* ... other screens ... */}
+         
           <Stack.Screen
             name="book/[id]"
             options={{
@@ -29,26 +29,6 @@ export default function RootLayout() {
               headerStyle: { backgroundColor: '#0d0f14' },
               headerTintColor: '#f97316',
               headerTitle: '',
-            }}
-          />
-          <Stack.Screen
-            name="my-id"
-            options={{
-              headerShown: true,
-              presentation: 'modal',
-              headerStyle: { backgroundColor: '#0d0f14' },
-              headerTintColor: '#f97316',
-              headerTitle: 'Mon Profil Telegram',
-            }}
-          />
-          <Stack.Screen
-            name="scan-peer"
-            options={{
-              headerShown: true,
-              presentation: 'modal',
-              headerStyle: { backgroundColor: '#0d0f14' },
-              headerTintColor: '#f97316',
-              headerTitle: 'Scanner un Contact',
             }}
           />
         </Stack>

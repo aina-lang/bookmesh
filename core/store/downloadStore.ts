@@ -14,6 +14,8 @@ export interface ActiveDownload {
   bytesReceived: number;
   status: DownloadStatus;
   startedAt: number;
+  format?: string;
+  thumbnailMessageId?: number;
   error?: string;
   localPath?: string;
 }

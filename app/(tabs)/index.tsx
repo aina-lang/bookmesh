@@ -1,4 +1,4 @@
-import { CATEGORIES, CategoryColors, Colors, FormatColors } from '@/constants/theme';
+import { Colors, FormatColors } from '@/constants/theme';
 import { useConnectivity } from '@/core/context/ConnectivityContext';
 import { useModal } from '@/core/context/ModalContext';
 import { FileStore } from '@/core/storage/fileStore';
@@ -13,77 +13,15 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
+  Image,
   RefreshControl,
   StyleSheet,
   Text,
   TextInput, TouchableOpacity,
   View
 } from 'react-native';
-import Animated, {
-  Extrapolate,
-  interpolate,
-  SharedValue,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useSharedValue
-} from 'react-native-reanimated';
-
 const C = Colors.dark;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CHIP_WIDTH = 100;
-const CHIP_MARGIN = 8;
-const FULL_CHIP_WIDTH = CHIP_WIDTH + CHIP_MARGIN;
-const SPACER_WIDTH = (SCREEN_WIDTH - CHIP_WIDTH) / 2;
-
-function CategoryChip({
-  item,
-  index,
-  active,
-  scrollX,
-  onPress
-}: {
-  item: string | null;
-  index: number;
-  active: boolean;
-  scrollX: SharedValue<number>;
-  onPress: () => void
-}) {
-  const color = item ? CategoryColors[item] : C.tint;
-
-  const animatedStyle = useAnimatedStyle(() => {
-    // Distance from the center of the viewport
-    // Since we have a spacer at the start, the 0-th item is at scrollX = 0
-    const step = index * FULL_CHIP_WIDTH;
-    const scale = interpolate(
-      scrollX.value,
-      [step - FULL_CHIP_WIDTH, step, step + FULL_CHIP_WIDTH],
-      [1, 1.25, 1],
-      Extrapolate.CLAMP
-    );
-
-    return {
-      transform: [{ scale }],
-      backgroundColor: active ? color + '33' : C.card,
-      borderColor: active ? color : C.border,
-    };
-  });
-
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
-      <Animated.View style={[styles.chip, { width: CHIP_WIDTH }, animatedStyle]}>
-        <Text
-          style={[
-            styles.chipText,
-            active && { color, fontWeight: '700' }
-          ]}
-          numberOfLines={1}
-        >
-          {item ?? 'Tous'}
-        </Text>
-      </Animated.View>
-    </TouchableOpacity>
-  );
-}
 
 function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -101,7 +39,7 @@ function BookCard({
   onDownload: () => void;
   activeDownload?: ActiveDownload | null;
 }) {
-  const catColor = CategoryColors[item.category] ?? C.muted;
+  const catColor = C.muted;
   const isDownloading = activeDownload?.status === 'downloading' || activeDownload?.status === 'pending';
   const progressPct = activeDownload ? Math.round(activeDownload.progress * 100) : 0;
 
@@ -109,9 +47,17 @@ function BookCard({
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.75}>
       {/* Cover block - plus élégant */}
       <View style={[styles.cover, { backgroundColor: catColor + '15', borderColor: catColor + '33', borderWidth: 1 }]}>
-        <Text style={[styles.coverLetter, { color: catColor }]}>
-          {item.title.charAt(0).toUpperCase()}
-        </Text>
+        {item.thumbnailMessageId ? (
+          <Image 
+            source={{ uri: `https://hipster-api.fr/api/telegram/thumbnail/${item.thumbnailMessageId}` }} 
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+        ) : (
+          <Text style={[styles.coverLetter, { color: catColor }]}>
+            {item.title.charAt(0).toUpperCase()}
+          </Text>
+        )}
         <View style={[styles.formatBadge, { backgroundColor: FormatColors[item.format.toLowerCase()] || FormatColors.unknown }]}>
           <Text style={styles.formatBadgeText}>{item.format.toUpperCase()}</Text>
         </View>
@@ -119,11 +65,6 @@ function BookCard({
 
       {/* Info */}
       <View style={styles.info}>
-        <View style={styles.row}>
-          <View style={[styles.categoryChip, { backgroundColor: catColor + '15', borderColor: catColor + '33' }]}>
-            <Text style={[styles.categoryText, { color: catColor }]}>{item.category}</Text>
-          </View>
-        </View>
         <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.author} numberOfLines={1}>{item.author}</Text>
 
@@ -159,29 +100,14 @@ function BookCard({
   );
 }
 
-export default function BrowseScreen() {
+export default function IndexScreen() {
   const { showModal } = useModal();
   const { isOffline } = useConnectivity();
   const [allBooks, setAllBooks] = useState<BookMetadata[]>([]);
   const [activeDownloads, setActiveDownloads] = useState<Record<string, ActiveDownload>>({});
   const [search, setSearch] = useState('');
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
-  const scrollX = useSharedValue(0);
-  const flatListRef = React.useRef<FlatList>(null);
-
-  const onScroll = useAnimatedScrollHandler((event) => {
-    scrollX.value = event.contentOffset.x;
-  });
-
-  const onMomentumScrollEnd = (event: any) => {
-    const index = Math.round(event.nativeEvent.contentOffset.x / FULL_CHIP_WIDTH);
-    const categories = [null, ...CATEGORIES];
-    if (categories[index] !== undefined) {
-      setActiveCategory(categories[index]);
-    }
-  };
 
   const load = useCallback(async () => {
     try {
@@ -202,7 +128,7 @@ export default function BrowseScreen() {
             telegramMessageId: f.id,
             title: f.fileName.split('.').slice(0, -1).join('.') || f.fileName,
             author: 'Auteur Inconnu',
-            category: 'Autre',
+
             format: f.fileName.split('.').pop()?.toLowerCase() || 'unknown',
             fileSize: f.fileSize,
             hash: `tg-${f.id}`,
@@ -210,8 +136,8 @@ export default function BrowseScreen() {
             isPublic: true,
             addedAt: f.date * 1000,
             seedCount: 1,
-            // On vérifie si ce livre est déjà téléchargé localement
             localPath: localBooks[id]?.localPath,
+            thumbnailMessageId: f.thumbnailMessageId,
           };
         });
         await Storage.saveBooks(books);
@@ -253,11 +179,8 @@ export default function BrowseScreen() {
       setActiveDownloads(dls);
     });
 
-    const subStorage = Storage.subscribe(load);
-
     return () => {
       sub();
-      subStorage();
     };
   }, [load]);
 
@@ -303,6 +226,8 @@ export default function BrowseScreen() {
         bookTitle: book.title,
         bookSize: book.fileSize,
         fromPeerId: 'cloud-telegram',
+        format: book.format,
+        thumbnailMessageId: book.thumbnailMessageId,
       });
 
       const filename = `${book.title.replace(/\s+/g, '_')}.${book.format}`;
@@ -380,9 +305,13 @@ export default function BrowseScreen() {
 
         // Upload vers le Cloud (Telegram)
         const { telegramService } = require('@/services/telegramService');
-        let telegramMessageId;
+        let telegramMessageId: number | undefined;
+        let thumbMsgId: number | undefined;
+        
         try {
-          telegramMessageId = await telegramService.uploadFile(file.uri, name);
+          const uploadRes = await telegramService.uploadFile(file.uri, name);
+          telegramMessageId = uploadRes.messageId;
+          thumbMsgId = uploadRes.thumbnailMessageId;
         } catch (tgError) {
           console.error("[Catalog] Erreur upload:", tgError);
         }
@@ -392,7 +321,7 @@ export default function BrowseScreen() {
           telegramMessageId,
           title: name.replace(/\.[^/.]+$/, ''),
           author: 'Auteur Inconnu',
-          category: 'Autre',
+          // category: 'Autre',
           format: name.split('.').pop()?.toLowerCase() || 'unknown',
           fileSize: file.size ?? 0,
           hash: hash,
@@ -400,6 +329,7 @@ export default function BrowseScreen() {
           isPublic: true,
           addedAt: Date.now(),
           seedCount: 1,
+          thumbnailMessageId: thumbMsgId,
         };
 
         if (telegramMessageId) {
@@ -437,10 +367,8 @@ export default function BrowseScreen() {
   };
 
   const filtered = allBooks.filter(b => {
-    const matchCat = !activeCategory || b.category === activeCategory;
     const q = search.toLowerCase();
-    const matchSearch = !q || b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q);
-    return matchCat && matchSearch;
+    return !q || b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q);
   });
 
   return (

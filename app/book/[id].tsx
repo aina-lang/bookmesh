@@ -1,4 +1,4 @@
-import { CategoryColors, Colors, FormatColors } from '@/constants/theme';
+import { Colors, FormatColors } from '@/constants/theme';
 import { useModal } from '@/core/context/ModalContext';
 import { BookMetadata, Storage } from '@/core/storage/storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -18,6 +18,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Image,
 } from 'react-native';
 
 import { useConnectivity } from '@/core/context/ConnectivityContext';
@@ -97,6 +98,8 @@ export default function BookDetailScreen() {
         bookTitle: book.title,
         bookSize: book.fileSize,
         fromPeerId: 'cloud-telegram',
+        format: book.format,
+        thumbnailMessageId: book.thumbnailMessageId,
       });
 
       const filename = `${book.title.replace(/\s+/g, '_')}.${book.format}`;
@@ -136,7 +139,7 @@ export default function BookDetailScreen() {
   };
 
   const isLocal = !!book.localPath;
-  const catColor = CategoryColors[book.category] ?? C.muted;
+  const catColor = C.muted;
   const downloading = activeDownload?.status === 'downloading' || activeDownload?.status === 'pending';
   const progressPct = activeDownload ? Math.round(activeDownload.progress * 100) : 0;
 
@@ -146,16 +149,22 @@ export default function BookDetailScreen() {
       {/* Cover header */}
       <View style={[styles.header, { backgroundColor: catColor + '10' }]}>
         <View style={[styles.coverBlock, { backgroundColor: catColor + '15', borderColor: catColor + '33', borderWidth: 1 }]}>
-          <Text style={[styles.coverLetter, { color: catColor }]}>
-            {book.title.charAt(0).toUpperCase()}
-          </Text>
+          {book.thumbnailMessageId ? (
+            <Image 
+              source={{ uri: `https://hipster-api.fr/api/telegram/thumbnail/${book.thumbnailMessageId}` }} 
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+            />
+          ) : (
+            <Text style={[styles.coverLetter, { color: catColor }]}>
+              {book.title.charAt(0).toUpperCase()}
+            </Text>
+          )}
           <View style={[styles.formatBadge, { backgroundColor: FormatColors[book.format.toLowerCase()] || FormatColors.unknown }]}>
             <Text style={styles.formatBadgeText}>{book.format.toUpperCase()}</Text>
           </View>
         </View>
-        <View style={[styles.categoryPill, { backgroundColor: catColor + '15', borderColor: catColor + '33' }]}>
-          <Text style={[styles.categoryPillText, { color: catColor }]}>{book.category}</Text>
-        </View>
+
       </View>
 
       <View style={styles.body}>

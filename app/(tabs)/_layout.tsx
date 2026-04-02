@@ -63,7 +63,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="catalog"
+        name="index"
         options={{
           title: 'Explorer',
           tabBarIcon: ({ color }) => <Globe size={22} color={color} />,
@@ -83,7 +83,6 @@ export default function TabLayout() {
           headerTitle: 'Ma Bibliothèque',
         }}
       />
-      <Tabs.Screen name="index" options={{ href: null }} />
       <Tabs.Screen name="peers" options={{ href: null }} />
       <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>

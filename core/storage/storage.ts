@@ -5,11 +5,11 @@ export interface BookMetadata {
   title: string;
   author: string;
   description?: string;
-  category: string; // Roman, SF, Manga, etc.
   language?: string;
   format: string; // pdf, epub, mp4, mp3, jpg...
   fileSize: number;
   hash: string;
+  thumbnailMessageId?: number;
   ownerPeerId: string;
   isPublic: boolean;
   localPath?: string;
