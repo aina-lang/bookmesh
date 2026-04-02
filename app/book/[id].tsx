@@ -1,16 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert,
-} from 'react-native';
+import { CategoryColors, Colors, FormatColors } from '@/constants/theme';
+import { useModal } from '@/core/context/ModalContext';
+import { BookMetadata, Storage } from '@/core/storage/storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Storage, BookMetadata } from '@/core/storage/storage';
-import { Colors, CategoryColors } from '@/constants/theme';
-import { 
-  Download, Users, FileText, CheckCircle,
-  BookOpen, HardDrive, Calendar,
+import {
+  Book,
+  BookOpen,
+  Calendar,
+  CheckCircle,
+  Download,
+  FileText,
+  HardDrive
 } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
+import { useConnectivity } from '@/core/context/ConnectivityContext';
 import { FileStore } from '@/core/storage/fileStore';
+import { ActiveDownload, DownloadStore } from '@/core/store/downloadStore';
 
 const C = Colors.dark;
 
@@ -27,17 +39,29 @@ function formatDate(ts: number | undefined) {
 }
 
 export default function BookDetailScreen() {
+  const { showModal } = useModal();
+  const { isOffline } = useConnectivity();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [book, setBook] = useState<BookMetadata | null>(null);
-  const [downloading, setDownloading] = useState(false);
+  const [activeDownload, setActiveDownload] = useState<ActiveDownload | null>(null);
 
   const router = useRouter();
 
-  useEffect(() => {
+  const load = React.useCallback(async () => {
     if (id) {
-      Storage.getBook(id).then(setBook);
+      const b = await Storage.getBook(id);
+      setBook(b);
+      const dl = DownloadStore.get(id);
+      setActiveDownload(dl || null);
     }
   }, [id]);
+
+  useEffect(() => {
+    load();
+    const sub1 = DownloadStore.subscribe(load);
+    const sub2 = Storage.subscribe(load);
+    return () => { sub1(); sub2(); };
+  }, [id, load]);
 
   if (!book) {
     return (
@@ -48,47 +72,88 @@ export default function BookDetailScreen() {
   }
 
   const handleDownload = async () => {
+    if (isOffline) {
+      showModal({
+        type: 'info',
+        title: 'Connexion Requise',
+        message: 'Vous devez être connecté à Internet pour télécharger ce livre depuis le Cloud.'
+      });
+      return;
+    }
+
     if (!book.telegramMessageId) {
-      Alert.alert('Erreur', "Ce livre n'a pas de référence sur nos serveurs Cloud (Telegram).");
+      showModal({
+        type: 'info',
+        title: 'Indisponible',
+        message: "Ce fichier n'est pas disponible sur le Cloud."
+      });
       return;
     }
 
     try {
-      setDownloading(true);
+      // Démarrer l'entrée dans le Store global
+      DownloadStore.start({
+        bookId: book.id,
+        bookTitle: book.title,
+        bookSize: book.fileSize,
+        fromPeerId: 'cloud-telegram',
+      });
+
       const filename = `${book.title.replace(/\s+/g, '_')}.${book.format}`;
       await FileStore.ensureDir();
       const outputPath = await FileStore.getFileUri(filename);
-      
+
       const { telegramService } = require('@/services/telegramService');
-      await telegramService.downloadFile(book.telegramMessageId, outputPath);
-      
-      const newBook = { ...book, localPath: outputPath };
+
+      const finalUri = await telegramService.downloadFile(
+        book.telegramMessageId,
+        outputPath,
+        (progress: number, bytes: number, total: number) => {
+          DownloadStore.updateProgress(book.id, bytes, total);
+        }
+      );
+
+      DownloadStore.complete(book.id, finalUri);
+
+      const newBook = { ...book, localPath: finalUri };
       await Storage.saveBook(newBook);
       setBook(newBook);
-      
-      Alert.alert('Succès', 'Le livre a été téléchargé dans votre bibliothèque.');
+
+      showModal({
+        type: 'success',
+        title: 'Succès',
+        message: 'Le fichier a été téléchargé avec succès.'
+      });
     } catch (error) {
       console.error(error);
-      Alert.alert('Erreur', 'Impossible de télécharger le fichier depuis Telegram.');
-    } finally {
-      setDownloading(false);
+      DownloadStore.fail(book.id, "Erreur de téléchargement");
+      showModal({
+        type: 'error',
+        title: 'Erreur',
+        message: "L'opération a échoué. Vérifiez votre connexion."
+      });
     }
   };
 
   const isLocal = !!book.localPath;
   const catColor = CategoryColors[book.category] ?? C.muted;
+  const downloading = activeDownload?.status === 'downloading' || activeDownload?.status === 'pending';
+  const progressPct = activeDownload ? Math.round(activeDownload.progress * 100) : 0;
 
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }}>
       {/* Cover header */}
-      <View style={[styles.header, { backgroundColor: catColor + '44' }]}>
-        <View style={[styles.coverBlock, { backgroundColor: catColor + '55' }]}>
+      <View style={[styles.header, { backgroundColor: catColor + '10' }]}>
+        <View style={[styles.coverBlock, { backgroundColor: catColor + '15', borderColor: catColor + '33', borderWidth: 1 }]}>
           <Text style={[styles.coverLetter, { color: catColor }]}>
             {book.title.charAt(0).toUpperCase()}
           </Text>
+          <View style={[styles.formatBadge, { backgroundColor: FormatColors[book.format.toLowerCase()] || FormatColors.unknown }]}>
+            <Text style={styles.formatBadgeText}>{book.format.toUpperCase()}</Text>
+          </View>
         </View>
-        <View style={[styles.categoryPill, { backgroundColor: catColor + '33', borderColor: catColor + '66' }]}>
+        <View style={[styles.categoryPill, { backgroundColor: catColor + '15', borderColor: catColor + '33' }]}>
           <Text style={[styles.categoryPillText, { color: catColor }]}>{book.category}</Text>
         </View>
       </View>
@@ -101,9 +166,8 @@ export default function BookDetailScreen() {
         {/* Stats row */}
         <View style={styles.statsRow}>
           <View style={styles.stat}>
-            <Users size={14} color={C.success} />
-            <Text style={[styles.statValue, { color: C.success }]}>{book.seedCount ?? 0}</Text>
-            <Text style={styles.statLabel}>seeds</Text>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.success }} />
+            <Text style={[styles.statValue, { color: C.success }]}>Disponible</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.stat}>
@@ -120,28 +184,32 @@ export default function BookDetailScreen() {
         {/* Description */}
         {book.description ? (
           <>
-            <Text style={styles.sectionTitle}>Description</Text>
+            <Text style={styles.sectionTitle}>Résumé</Text>
             <Text style={styles.description}>{book.description}</Text>
           </>
         ) : null}
 
         {/* Metadata table */}
-        <Text style={styles.sectionTitle}>Informations</Text>
+        <Text style={styles.sectionTitle}>Informations techniques</Text>
         <View style={styles.metaTable}>
           <MetaRow icon={<BookOpen size={14} color={C.muted} />} label="Format" value={book.format.toUpperCase()} />
-          <MetaRow icon={<Calendar size={14} color={C.muted} />} label="Ajouté le" value={formatDate(book.addedAt)} />
-          <MetaRow icon={<Users size={14} color={C.muted} />} label="Source" value={`${book.ownerPeerId.substring(0, 16)}…`} />
+          <MetaRow icon={<Calendar size={14} color={C.muted} />} label="Parution" value={formatDate(book.addedAt)} />
+          <MetaRow icon={<Book size={14} color={C.muted} />} label="Source" value="Bibliothèque Cloud" />
         </View>
 
-        {/* Hash */}
-        <Text style={styles.hash}>SHA-256: {book.hash.substring(0, 32)}…</Text>
+        {/* Hash - moins mis en avant */}
+        <Text style={styles.hash}>ID: {book.id.substring(0, 16)}</Text>
 
         {/* Action button */}
         {isLocal ? (
-          <View style={[styles.actionBtn, { backgroundColor: C.success + '22', borderColor: C.success + '44' }]}>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: C.success + '15', borderColor: C.success + '33' }]}
+            onPress={() => FileStore.openFile(book.localPath!)}
+            activeOpacity={0.8}
+          >
             <CheckCircle size={20} color={C.success} />
-            <Text style={[styles.actionBtnText, { color: C.success }]}>Dans ta bibliothèque · Seeding</Text>
-          </View>
+            <Text style={[styles.actionBtnText, { color: C.success }]}>Lire le livre</Text>
+          </TouchableOpacity>
         ) : (
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: C.tint }]}
@@ -151,7 +219,7 @@ export default function BookDetailScreen() {
           >
             <Download size={20} color="#fff" />
             <Text style={[styles.actionBtnText, { color: '#fff' }]}>
-              {downloading ? 'Téléchargement…' : 'Télécharger'}
+              {downloading ? 'Chargement…' : 'Télécharger'}
             </Text>
           </TouchableOpacity>
         )}
@@ -191,6 +259,16 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   coverLetter: { fontSize: 48, fontWeight: 'bold' },
+  formatBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderTopLeftRadius: 10,
+    borderBottomRightRadius: 11,
+  },
+  formatBadgeText: { color: '#fff', fontSize: 12, fontWeight: '900' },
   categoryPill: {
     paddingHorizontal: 12,
     paddingVertical: 4,

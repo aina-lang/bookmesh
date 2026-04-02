@@ -1,39 +1,44 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export interface BookMetadata {
-  id: string;           // SHA-256 hash
+  id: string; // SHA-256 hash
   title: string;
   author: string;
   description?: string;
-  category: string;     // Roman, SF, Manga, etc.
+  category: string; // Roman, SF, Manga, etc.
   language?: string;
-  format: 'pdf' | 'epub';
+  format: string; // pdf, epub, mp4, mp3, jpg...
   fileSize: number;
   hash: string;
   ownerPeerId: string;
   isPublic: boolean;
   localPath?: string;
   telegramMessageId?: number; // ← Ajouté pour Telegram
-  addedAt: number;      // timestamp ms
-  seedCount?: number;   // nb de seeders annoncés via GossipSub
-  coverColor?: string;  // couleur hex générée depuis le hash
+  addedAt: number; // timestamp ms
+  seedCount?: number; // nb de seeders annoncés via GossipSub
+  coverColor?: string; // couleur hex générée depuis le hash
 }
 
 export interface PeerInfo {
   id: string;
   multiaddrs: string[];
   lastSeen: number;
-  bookCount?: number;   // livres seedés par ce pair
+  bookCount?: number; // livres seedés par ce pair
 }
 
-export type DownloadStatus = 'pending' | 'downloading' | 'completed' | 'error' | 'cancelled';
+export type DownloadStatus =
+  | "pending"
+  | "downloading"
+  | "completed"
+  | "error"
+  | "cancelled";
 
 export interface DownloadEntry {
   bookId: string;
   bookTitle: string;
   bookSize: number;
   fromPeerId: string;
-  progress: number;     // 0.0 → 1.0
+  progress: number; // 0.0 → 1.0
   status: DownloadStatus;
   startedAt: number;
   completedAt?: number;
@@ -42,18 +47,40 @@ export interface DownloadEntry {
 }
 
 const KEYS = {
-  BOOKS: 'bookmesh_books',
-  PEERS: 'bookmesh_peers',
-  DOWNLOADS: 'bookmesh_downloads',
-  MY_PEER_ID: 'bookmesh_my_peer_id',
+  BOOKS: "bookmesh_books",
+  PEERS: "bookmesh_peers",
+  DOWNLOADS: "bookmesh_downloads",
+  MY_PEER_ID: "bookmesh_my_peer_id",
 };
 
+type StorageListener = () => void;
+const listeners = new Set<StorageListener>();
+
 export const Storage = {
+  subscribe(listener: StorageListener) {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  },
+
+  privateNotify() {
+    listeners.forEach((l) => l());
+  },
   // ─── Books ───────────────────────────────────────────────
   async saveBook(book: BookMetadata) {
     const books = await this.getBooks();
     const updatedBooks = { ...books, [book.id]: book };
     await AsyncStorage.setItem(KEYS.BOOKS, JSON.stringify(updatedBooks));
+    this.privateNotify();
+  },
+
+  async saveBooks(newBooks: BookMetadata[]) {
+    const books = await this.getBooks();
+    let updated = { ...books };
+    newBooks.forEach((b) => {
+      updated[b.id] = b;
+    });
+    await AsyncStorage.setItem(KEYS.BOOKS, JSON.stringify(updated));
+    this.privateNotify();
   },
 
   async getBooks(): Promise<Record<string, BookMetadata>> {
@@ -70,6 +97,7 @@ export const Storage = {
     const books = await this.getBooks();
     delete books[id];
     await AsyncStorage.setItem(KEYS.BOOKS, JSON.stringify(books));
+    this.privateNotify();
   },
 
   // ─── Peers ───────────────────────────────────────────────
@@ -108,5 +136,6 @@ export const Storage = {
     const downloads = await this.getDownloads();
     delete downloads[bookId];
     await AsyncStorage.setItem(KEYS.DOWNLOADS, JSON.stringify(downloads));
+    this.privateNotify();
   },
 };

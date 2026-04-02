@@ -1,21 +1,32 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View, FlatList, StyleSheet, TextInput, TouchableOpacity,
-  Text, ScrollView, RefreshControl, Dimensions,
-} from 'react-native';
-import Animated, { 
-  useAnimatedStyle, 
-  withSpring, 
-  useSharedValue, 
-  useAnimatedScrollHandler,
-  interpolate,
-  Extrapolate,
-  SharedValue
-} from 'react-native-reanimated';
-import { Storage, BookMetadata } from '@/core/storage/storage';
-import { Colors, CategoryColors, CATEGORIES } from '@/constants/theme';
-import { Search, Download, Users } from 'lucide-react-native';
+import { CATEGORIES, CategoryColors, Colors, FormatColors } from '@/constants/theme';
+import { useConnectivity } from '@/core/context/ConnectivityContext';
+import { useModal } from '@/core/context/ModalContext';
+import { FileStore } from '@/core/storage/fileStore';
+import { BookMetadata, Storage } from '@/core/storage/storage';
+import { ActiveDownload, DownloadStore } from '@/core/store/downloadStore';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
+import { CheckCircle, Download, Plus, Search } from 'lucide-react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput, TouchableOpacity,
+  View
+} from 'react-native';
+import Animated, {
+  Extrapolate,
+  interpolate,
+  SharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue
+} from 'react-native-reanimated';
 
 const C = Colors.dark;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -24,21 +35,21 @@ const CHIP_MARGIN = 8;
 const FULL_CHIP_WIDTH = CHIP_WIDTH + CHIP_MARGIN;
 const SPACER_WIDTH = (SCREEN_WIDTH - CHIP_WIDTH) / 2;
 
-function CategoryChip({ 
-  item, 
+function CategoryChip({
+  item,
   index,
-  active, 
+  active,
   scrollX,
-  onPress 
-}: { 
-  item: string | null; 
+  onPress
+}: {
+  item: string | null;
   index: number;
-  active: boolean; 
+  active: boolean;
   scrollX: SharedValue<number>;
-  onPress: () => void 
+  onPress: () => void
 }) {
   const color = item ? CategoryColors[item] : C.tint;
-  
+
   const animatedStyle = useAnimatedStyle(() => {
     // Distance from the center of the viewport
     // Since we have a spacer at the start, the 0-th item is at scrollX = 0
@@ -60,9 +71,9 @@ function CategoryChip({
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
       <Animated.View style={[styles.chip, { width: CHIP_WIDTH }, animatedStyle]}>
-        <Text 
+        <Text
           style={[
-            styles.chipText, 
+            styles.chipText,
             active && { color, fontWeight: '700' }
           ]}
           numberOfLines={1}
@@ -79,48 +90,80 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function BookCard({ item, onPress }: { item: BookMetadata; onPress: () => void }) {
+function BookCard({
+  item,
+  onPress,
+  onDownload,
+  activeDownload
+}: {
+  item: BookMetadata;
+  onPress: () => void;
+  onDownload: () => void;
+  activeDownload?: ActiveDownload | null;
+}) {
   const catColor = CategoryColors[item.category] ?? C.muted;
+  const isDownloading = activeDownload?.status === 'downloading' || activeDownload?.status === 'pending';
+  const progressPct = activeDownload ? Math.round(activeDownload.progress * 100) : 0;
+
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.75}>
-      {/* Cover block */}
-      <View style={[styles.cover, { backgroundColor: catColor + '33' }]}>
+      {/* Cover block - plus élégant */}
+      <View style={[styles.cover, { backgroundColor: catColor + '15', borderColor: catColor + '33', borderWidth: 1 }]}>
         <Text style={[styles.coverLetter, { color: catColor }]}>
           {item.title.charAt(0).toUpperCase()}
         </Text>
+        <View style={[styles.formatBadge, { backgroundColor: FormatColors[item.format.toLowerCase()] || FormatColors.unknown }]}>
+          <Text style={styles.formatBadgeText}>{item.format.toUpperCase()}</Text>
+        </View>
       </View>
 
       {/* Info */}
       <View style={styles.info}>
         <View style={styles.row}>
-          <View style={[styles.categoryChip, { backgroundColor: catColor + '22', borderColor: catColor + '55' }]}>
+          <View style={[styles.categoryChip, { backgroundColor: catColor + '15', borderColor: catColor + '33' }]}>
             <Text style={[styles.categoryText, { color: catColor }]}>{item.category}</Text>
           </View>
-          <Text style={styles.format}>{item.format.toUpperCase()}</Text>
         </View>
         <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.author} numberOfLines={1}>{item.author}</Text>
-        <View style={[styles.row, { marginTop: 6 }]}>
+
+        <View style={[styles.row, { marginTop: 8 }]}>
           <View style={styles.stat}>
-            <Users size={11} color={C.success} />
-            <Text style={[styles.statText, { color: C.success }]}>
-              {item.seedCount ?? 0} seeds
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: isDownloading ? C.tint : C.success }} />
+            <Text style={[styles.statText, { color: C.muted }]}>
+              {isDownloading ? `Chargement ${progressPct}%` : 'Disponible sur le Cloud'}
             </Text>
           </View>
           <Text style={styles.size}>{formatSize(item.fileSize)}</Text>
         </View>
       </View>
 
-      {/* Download button */}
-      <TouchableOpacity style={styles.dlBtn} onPress={onPress}>
-        <Download size={18} color={C.tint} />
-      </TouchableOpacity>
+      {/* Action icon */}
+      <View style={styles.dlBtn}>
+        {item.localPath ? (
+          <CheckCircle size={20} color={C.success} />
+        ) : isDownloading ? (
+          <Text style={{ color: C.tint, fontSize: 12, fontWeight: 'bold' }}>{progressPct}%</Text>
+        ) : (
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              onDownload();
+            }}
+          >
+            <Download size={20} color={C.tint} />
+          </TouchableOpacity>
+        )}
+      </View>
     </TouchableOpacity>
   );
 }
 
 export default function BrowseScreen() {
+  const { showModal } = useModal();
+  const { isOffline } = useConnectivity();
   const [allBooks, setAllBooks] = useState<BookMetadata[]>([]);
+  const [activeDownloads, setActiveDownloads] = useState<Record<string, ActiveDownload>>({});
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -141,14 +184,251 @@ export default function BrowseScreen() {
   };
 
   const load = useCallback(async () => {
-    const bookMap = await Storage.getBooks();
-    // Browse shows remote books (without localPath)
-    const remote = Object.values(bookMap).filter(b => !b.localPath);
-    remote.sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0));
-    setAllBooks(remote);
+    try {
+      setRefreshing(true);
+      const response = await fetch("https://hipster-api.fr/api/telegram/list");
+      const resData = await response.json();
+      console.log("[Catalog] API Response:", JSON.stringify(resData).substring(0, 200));
+
+      // Adaptation à l'intercepteur NestJS qui enveloppe la réponse dans "data"
+      const payload = resData.data || resData;
+
+      if (payload.success && payload.files) {
+        const localBooks = await Storage.getBooks();
+        const books: BookMetadata[] = payload.files.map((f: any) => {
+          const id = `tg-${f.id}`;
+          return {
+            id,
+            telegramMessageId: f.id,
+            title: f.fileName.split('.').slice(0, -1).join('.') || f.fileName,
+            author: 'Auteur Inconnu',
+            category: 'Autre',
+            format: f.fileName.split('.').pop()?.toLowerCase() || 'unknown',
+            fileSize: f.fileSize,
+            hash: `tg-${f.id}`,
+            ownerPeerId: 'cloud-telegram',
+            isPublic: true,
+            addedAt: f.date * 1000,
+            seedCount: 1,
+            // On vérifie si ce livre est déjà téléchargé localement
+            localPath: localBooks[id]?.localPath,
+          };
+        });
+        await Storage.saveBooks(books);
+        setAllBooks(books);
+      }
+    } catch (e) {
+      console.warn('[Catalog] Error fetching Telegram list:', e);
+      // Fallback local si l'API est hors-ligne
+      const bookMap = await Storage.getBooks();
+      const remote = Object.values(bookMap).filter(b => !b.localPath);
+      remote.sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0));
+      setAllBooks(remote);
+    } finally {
+      setRefreshing(false);
+    }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const [publicDir, setPublicDir] = useState<string | null>(null);
+
+  const setupStorage = async (): Promise<string | null> => {
+    const uri = await FileStore.requestDirectory();
+    if (uri) {
+      setPublicDir(uri);
+      await load();
+    }
+    return uri;
+  };
+
+  useEffect(() => {
+    FileStore.getPublicUri().then(setPublicDir);
+    load();
+
+    // Suivre les téléchargements en cours pour mise à jour UI temps réel
+    const sub = DownloadStore.subscribe(() => {
+      const dls: Record<string, ActiveDownload> = {};
+      DownloadStore.getAll().forEach(d => {
+        dls[d.bookId] = d;
+      });
+      setActiveDownloads(dls);
+    });
+
+    const subStorage = Storage.subscribe(load);
+
+    return () => {
+      sub();
+      subStorage();
+    };
+  }, [load]);
+
+  const handleDownload = async (book: BookMetadata) => {
+    if (isOffline) {
+      showModal({
+        type: 'info',
+        title: 'Connexion Requise',
+        message: 'Vous devez être connecté à Internet pour télécharger un livre depuis le Cloud.'
+      });
+      return;
+    }
+
+    if (!book.telegramMessageId) return;
+
+    // Si pas de dossier public activé, on demande avant de télécharger
+    if (!publicDir) {
+      showModal({
+        type: 'confirm',
+        title: 'Explorer Public',
+        message: 'Pour voir vos livres dans l\'explorateur du téléphone (Downloads), vous devez choisir un dossier de stockage une fois.',
+        confirmText: 'Choisir Dossier',
+        cancelText: 'Plus tard',
+        onConfirm: async () => {
+          const uri = await setupStorage();
+          if (uri) {
+            // On attend un peu pour que AsyncStorage soit prêt
+            setTimeout(() => continueDownload(book), 500);
+          }
+        },
+        onCancel: () => continueDownload(book)
+      });
+      return;
+    }
+
+    await continueDownload(book);
+  };
+
+  const continueDownload = async (book: BookMetadata) => {
+    try {
+      DownloadStore.start({
+        bookId: book.id,
+        bookTitle: book.title,
+        bookSize: book.fileSize,
+        fromPeerId: 'cloud-telegram',
+      });
+
+      const filename = `${book.title.replace(/\s+/g, '_')}.${book.format}`;
+      // On demande le chemin (public ou privé selon conf/Android version)
+      const outputPath = await FileStore.getFileUri(filename);
+
+      const { telegramService } = require('@/services/telegramService');
+      const tempPath = FileSystem.cacheDirectory + filename;
+
+      // Téléchargement vers un dossier temporaire d'abord
+      const finalTempUri = await telegramService.downloadFile(
+        book.telegramMessageId,
+        tempPath,
+        (progress: number, bytes: number, total: number) => {
+          DownloadStore.updateProgress(book.id, bytes, total);
+        }
+      );
+
+      // Déplacement final vers le stockage permanent (public ou privé)
+      const finalUri = await FileStore.saveFile(finalTempUri, filename);
+
+      DownloadStore.complete(book.id, finalUri);
+
+      // Mettre à jour le stockage et l'UI locale
+      const updated = { ...book, localPath: finalUri };
+      await Storage.saveBook(updated);
+      setAllBooks(prev => prev.map(b => b.id === book.id ? updated : b));
+
+    } catch (error) {
+      console.error("[Catalog] Error downloading:", error);
+      DownloadStore.fail(book.id, "Échec");
+    }
+  };
+
+  const handleDeleteLocal = (book: BookMetadata) => {
+    showModal({
+      type: 'delete',
+      title: 'Supprimer ?',
+      message: `Voulez-vous supprimer "${book.title}" de votre appareil ?`,
+      confirmText: 'Supprimer',
+      onConfirm: async () => {
+        if (book.localPath) {
+          await FileStore.deleteFile(book.localPath);
+        }
+        const updated = { ...book, localPath: undefined };
+        await Storage.saveBook(updated);
+        setAllBooks(prev => prev.map(b => b.id === book.id ? updated : b));
+      }
+    });
+  };
+
+  const [isUploading, setIsUploading] = useState(false);
+
+  const importBook = async () => {
+    if (isOffline) {
+      showModal({
+        type: 'info',
+        title: 'Connexion Requise',
+        message: 'L\'importation nécessite une connexion Internet pour sauvegarder votre livre sur le Cloud.'
+      });
+      return;
+    }
+
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets?.length > 0) {
+        setIsUploading(true);
+        const file = result.assets[0];
+        const hash = await FileStore.calculateHash(file.uri);
+        const name = file.name;
+
+        // Upload vers le Cloud (Telegram)
+        const { telegramService } = require('@/services/telegramService');
+        let telegramMessageId;
+        try {
+          telegramMessageId = await telegramService.uploadFile(file.uri, name);
+        } catch (tgError) {
+          console.error("[Catalog] Erreur upload:", tgError);
+        }
+
+        const newBook: BookMetadata = {
+          id: `tg-${telegramMessageId || hash}`,
+          telegramMessageId,
+          title: name.replace(/\.[^/.]+$/, ''),
+          author: 'Auteur Inconnu',
+          category: 'Autre',
+          format: name.split('.').pop()?.toLowerCase() || 'unknown',
+          fileSize: file.size ?? 0,
+          hash: hash,
+          ownerPeerId: 'me',
+          isPublic: true,
+          addedAt: Date.now(),
+          seedCount: 1,
+        };
+
+        if (telegramMessageId) {
+          showModal({
+            type: 'success',
+            title: 'Livre Ajouté',
+            message: `"${newBook.title}" est maintenant disponible dans votre bibliothèque Cloud.`
+          });
+        } else {
+          showModal({
+            type: 'error',
+            title: 'Échec Upload',
+            message: "Le livre n'a pas pu être sauvegardé sur le Cloud, mais il reste disponible pour lecture."
+          });
+        }
+
+        await Storage.saveBook(newBook);
+        await load();
+        setIsUploading(false);
+      }
+    } catch (err) {
+      setIsUploading(false);
+      showModal({
+        type: 'error',
+        title: 'Erreur',
+        message: "Échec de l'importation du livre."
+      });
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -177,49 +457,20 @@ export default function BrowseScreen() {
         />
       </View>
 
-      {/* Category filters */}
-      <View style={{ height: 75, marginBottom: 4 }}>
-        <Animated.FlatList
-          ref={flatListRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={[null, ...CATEGORIES]}
-          keyExtractor={item => item ?? 'all'}
-          contentContainerStyle={{
-            paddingLeft: SPACER_WIDTH,
-            paddingRight: SPACER_WIDTH,
-            height: 75,
-            alignItems: 'center',
-          }}
-          snapToInterval={FULL_CHIP_WIDTH}
-          decelerationRate="fast"
-          onScroll={onScroll}
-          scrollEventThrottle={16}
-          onMomentumScrollEnd={onMomentumScrollEnd}
-          renderItem={({ item, index }) => (
-            <CategoryChip 
-              item={item} 
-              index={index}
-              active={activeCategory === item} 
-              scrollX={scrollX}
-              onPress={() => {
-                setActiveCategory(item);
-                flatListRef.current?.scrollToOffset({
-                  offset: index * FULL_CHIP_WIDTH,
-                  animated: true,
-                });
-              }} 
-            />
-          )}
-        />
-      </View>
-
       {/* Book list */}
       <FlatList
-        data={filtered}
+        data={allBooks.filter(b => {
+          const q = search.toLowerCase();
+          return !q || b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q);
+        })}
         keyExtractor={item => item.id}
         renderItem={({ item }) => (
-          <BookCard item={item} onPress={() => router.push(`/book/${item.id}`)} />
+          <BookCard
+            item={item}
+            onPress={() => router.push(`/book/${item.id}`)}
+            onDownload={() => handleDownload(item)}
+            activeDownload={activeDownloads[item.id]}
+          />
         )}
         contentContainerStyle={{ padding: 12, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.tint} />}
@@ -228,12 +479,17 @@ export default function BrowseScreen() {
             <Text style={styles.emptyTitle}>Aucun livre trouvé</Text>
             <Text style={styles.emptySubtitle}>
               {allBooks.length === 0
-                ? 'Connecte-toi à des pairs pour voir leur catalogue'
+                ? 'Le catalogue Cloud (Telegram) est vide ou inaccessible.'
                 : 'Essaie un autre filtre'}
             </Text>
           </View>
         }
       />
+
+      {/* Floating Action Button pour l'import */}
+      <TouchableOpacity style={styles.fab} onPress={importBook} disabled={isUploading}>
+        {isUploading ? <ActivityIndicator color="#fff" /> : <Plus size={28} color="#fff" />}
+      </TouchableOpacity>
     </View>
   );
 }
@@ -260,6 +516,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.border,
     backgroundColor: C.card,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: C.tint,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: C.tint,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
   },
   chipActive: { backgroundColor: C.tint + '33', borderColor: C.tint },
   chipText: { color: C.muted, fontSize: 13, fontWeight: '600' },
@@ -292,7 +564,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   categoryText: { fontSize: 10, fontWeight: '700' },
-  format: { color: C.muted, fontSize: 10, fontWeight: '600' },
+  formatBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderTopLeftRadius: 6,
+    borderBottomRightRadius: 7, // match cover radius
+  },
+  formatBadgeText: { color: '#fff', fontSize: 9, fontWeight: '900' },
   title: { color: C.text, fontSize: 14, fontWeight: '700', marginTop: 4, lineHeight: 19 },
   author: { color: C.muted, fontSize: 12, marginTop: 2 },
   stat: { flexDirection: 'row', alignItems: 'center', gap: 4 },

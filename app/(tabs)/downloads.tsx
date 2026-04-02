@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   View, FlatList, StyleSheet, Text, TouchableOpacity,
 } from 'react-native';
+import { useModal } from '@/core/context/ModalContext';
 import { Colors } from '@/constants/theme';
-import { CheckCircle, Download, XCircle, AlertCircle, Loader } from 'lucide-react-native';
+import { CheckCircle, Download, XCircle, AlertCircle, Loader, Trash2, Library } from 'lucide-react-native';
 import { DownloadStore, ActiveDownload } from '@/core/store/downloadStore';
-import { Storage } from '@/core/storage/storage';
+import { Storage, BookMetadata } from '@/core/storage/storage';
+import { useRouter } from 'expo-router';
+import { FileStore } from '@/core/storage/fileStore';
 
 const C = Colors.dark;
 
@@ -30,7 +33,7 @@ function DownloadCard({ item, onRemove }: { item: ActiveDownload; onRemove: () =
   return (
     <View style={styles.card}>
       <View style={styles.cardTop}>
-        <View style={[styles.statusIcon, { backgroundColor: cfg.color + '22' }]}>
+        <View style={[styles.statusIcon, { backgroundColor: cfg.color + '15' }]}>
           <Icon size={18} color={cfg.color} />
         </View>
         <View style={styles.info}>
@@ -38,7 +41,6 @@ function DownloadCard({ item, onRemove }: { item: ActiveDownload; onRemove: () =
           <Text style={styles.meta}>
             {cfg.label}
             {item.status === 'downloading' && ` — ${formatSize(item.bytesReceived)} / ${formatSize(item.bookSize)}`}
-            {item.status === 'error' && ` — ${item.error}`}
           </Text>
         </View>
         <Text style={[styles.pct, { color: cfg.color }]}>
@@ -46,80 +48,119 @@ function DownloadCard({ item, onRemove }: { item: ActiveDownload; onRemove: () =
         </Text>
       </View>
 
-      {/* Progress bar */}
       <View style={styles.progressBg}>
         <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: cfg.color }]} />
       </View>
 
-      {/* Actions */}
-      {(item.status === 'completed' || item.status === 'error' || item.status === 'cancelled') && (
+      {(item.status === 'error' || item.status === 'cancelled') && (
         <TouchableOpacity style={styles.removeBtn} onPress={onRemove}>
-          <Text style={styles.removeText}>Supprimer</Text>
+          <Text style={styles.removeText}>Réessayer / Supprimer</Text>
         </TouchableOpacity>
       )}
     </View>
   );
 }
 
+function LocalBookCard({ item, onPress, onDelete }: { item: BookMetadata, onPress: () => void, onDelete: () => void }) {
+  return (
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
+      <View style={styles.cardTop}>
+        <View style={[styles.statusIcon, { backgroundColor: C.success + '15' }]}>
+          <CheckCircle size={18} color={C.success} />
+        </View>
+        <View style={styles.info}>
+          <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
+          <Text style={styles.meta}>{item.author} • {formatSize(item.fileSize)}</Text>
+        </View>
+        <TouchableOpacity style={styles.trashBtn} onPress={onDelete}>
+          <Trash2 size={18} color={C.error} />
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 export default function DownloadsScreen() {
-  const [downloads, setDownloads] = useState<ActiveDownload[]>([]);
+  const [active, setActive] = useState<ActiveDownload[]>([]);
+  const [local, setLocal] = useState<BookMetadata[]>([]);
+  const router = useRouter();
+
+  const load = async () => {
+    // Actifs
+    setActive(DownloadStore.getAll().filter(d => d.status === 'pending' || d.status === 'downloading' || d.status === 'error'));
+    
+    // Téléchargés
+    const bookMap = await Storage.getBooks();
+    const downloaded = Object.values(bookMap)
+      .filter(b => !!b.localPath)
+      .sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0));
+    setLocal(downloaded);
+  };
 
   useEffect(() => {
-    // Merge persisted downloads from AsyncStorage into the in-memory store on mount
-    (async () => {
-      const persisted = await Storage.getDownloads();
-      for (const entry of Object.values(persisted)) {
-        if (!DownloadStore.get(entry.bookId)) {
-          DownloadStore.start({
-            bookId: entry.bookId,
-            bookTitle: entry.bookTitle,
-            bookSize: entry.bookSize,
-            fromPeerId: entry.fromPeerId,
-          });
-          if (entry.status === 'completed') {
-            DownloadStore.complete(entry.bookId, entry.localPath ?? '');
-          } else if (entry.status === 'error') {
-            DownloadStore.fail(entry.bookId, entry.error ?? 'Erreur');
-          }
-        }
-      }
-      setDownloads(DownloadStore.getAll());
-    })();
-
-    return DownloadStore.subscribe(() => {
-      setDownloads([...DownloadStore.getAll()]);
-    });
+    load();
+    const sub1 = DownloadStore.subscribe(load);
+    const sub2 = Storage.subscribe(load);
+    return () => { sub1(); sub2(); };
   }, []);
 
   const handleRemove = async (bookId: string) => {
     DownloadStore.remove(bookId);
     await Storage.deleteDownload(bookId);
+    load();
   };
 
-  const active = downloads.filter(d => d.status === 'pending' || d.status === 'downloading');
-  const done   = downloads.filter(d => d.status === 'completed' || d.status === 'error' || d.status === 'cancelled');
+  const { showModal } = useModal();
+
+  const handleDeleteLocal = (book: BookMetadata) => {
+    showModal({
+      type: 'delete',
+      title: 'Supprimer ?',
+      message: `Voulez-vous supprimer "${book.title}" de votre appareil ?`,
+      confirmText: 'Supprimer',
+      onConfirm: async () => {
+        if (book.localPath) {
+          const { FileStore } = require('@/core/storage/fileStore');
+          await FileStore.deleteFile(book.localPath);
+        }
+        const updated = { ...book, localPath: undefined };
+        await Storage.saveBook(updated);
+        load();
+      }
+    });
+  };
+
+  const sections = [
+    ...(active.length > 0 ? [{ type: 'header', title: 'Téléchargements en cours' }, ...active.map(a => ({ ...a, type: 'active' }))] : []),
+    ...(local.length > 0 ? [{ type: 'header', title: 'Ma Bibliothèque' }, ...local.map(l => ({ ...l, type: 'local' }))] : []),
+  ];
 
   return (
     <View style={styles.container}>
-      {downloads.length === 0 ? (
+      {sections.length === 0 ? (
         <View style={styles.empty}>
-          <Download size={52} color={C.border} />
-          <Text style={styles.emptyTitle}>Aucun téléchargement</Text>
-          <Text style={styles.emptySubtitle}>Les fichiers reçus depuis le réseau apparaîtront ici</Text>
+          <Library size={52} color={C.border} />
+          <Text style={styles.emptyTitle}>Votre bibliothèque est vide</Text>
+          <Text style={styles.emptySubtitle}>Les livres que vous téléchargez ou importez apparaîtront ici.</Text>
         </View>
       ) : (
         <FlatList
-          data={[...active, ...done]}
-          keyExtractor={item => item.bookId}
-          renderItem={({ item }) => (
-            <DownloadCard item={item} onRemove={() => handleRemove(item.bookId)} />
-          )}
-          contentContainerStyle={{ padding: 12 }}
-          ListHeaderComponent={
-            active.length > 0 ? (
-              <Text style={styles.sectionTitle}>En cours · {active.length}</Text>
-            ) : null
-          }
+          data={sections}
+          keyExtractor={(item: any) => item.type === 'header' ? `h-${item.title}` : (item.bookId || item.id)}
+          renderItem={({ item }: any) => {
+            if (item.type === 'header') {
+              return <Text style={styles.sectionTitle}>{item.title}</Text>;
+            }
+            if (item.type === 'active') {
+              return <DownloadCard item={item} onRemove={() => handleRemove(item.bookId)} />;
+            }
+            return <LocalBookCard 
+              item={item} 
+              onPress={() => FileStore.openFile(item.localPath!)} 
+              onDelete={() => handleDeleteLocal(item)}
+            />;
+          }}
+          contentContainerStyle={{ padding: 16 }}
         />
       )}
     </View>
@@ -128,7 +169,8 @@ export default function DownloadsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
-  sectionTitle: { color: C.muted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 1 },
+  sectionTitle: { color: C.muted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginBottom: 12, marginTop: 12, letterSpacing: 1 },
+  trashBtn: { padding: 8, marginLeft: 8 },
   card: {
     backgroundColor: C.card,
     borderRadius: 14,

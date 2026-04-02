@@ -5,7 +5,7 @@ import { Colors } from '@/constants/theme';
 import { View, Text, StyleSheet } from 'react-native';
 import { DownloadStore } from '@/core/store/downloadStore';
 
-function DownloadBadge({ color }: { color: string }) {
+function DownloadBadge({ color, overlay }: { color: string, overlay?: boolean }) {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
@@ -17,9 +17,18 @@ function DownloadBadge({ color }: { color: string }) {
     return DownloadStore.subscribe(update);
   }, []);
 
+  if (overlay) {
+    if (count === 0) return null;
+    return (
+      <View style={styles.badge}>
+        <Text style={styles.badgeText}>{count}</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-      <Download size={24} color={color} />
+      <Library size={24} color={color} />
       {count > 0 && (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{count}</Text>
@@ -56,35 +65,26 @@ export default function TabLayout() {
       <Tabs.Screen
         name="catalog"
         options={{
-          title: 'Browse',
-          tabBarIcon: ({ color }) => <Globe size={24} color={color} />,
-          headerTitle: '📡 BookMesh',
-        }}
-      />
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Ma Lib',
-          tabBarIcon: ({ color }) => <Library size={24} color={color} />,
-          headerTitle: 'Ma Bibliothèque',
-        }}
-      />
-      <Tabs.Screen
-        name="peers"
-        options={{
-          title: 'Réseau',
-          tabBarIcon: ({ color }) => <Users size={24} color={color} />,
-          headerTitle: 'Le Réseau BookMesh',
+          title: 'Explorer',
+          tabBarIcon: ({ color }) => <Globe size={22} color={color} />,
+          headerTitle: '📚 BookMesh',
         }}
       />
       <Tabs.Screen
         name="downloads"
         options={{
-          title: 'DL',
-          tabBarIcon: ({ color }) => <DownloadBadge color={color} />,
-          headerTitle: 'Téléchargements',
+          title: 'Mes Livres',
+          tabBarIcon: ({ color }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Library size={22} color={color} />
+              <DownloadBadge color={color} overlay />
+            </View>
+          ),
+          headerTitle: 'Ma Bibliothèque',
         }}
       />
+      <Tabs.Screen name="index" options={{ href: null }} />
+      <Tabs.Screen name="peers" options={{ href: null }} />
       <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>
   );
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -8,
-    backgroundColor: '#f97316',
+    backgroundColor: C.tint,
     borderRadius: 8,
     minWidth: 16,
     height: 16,
