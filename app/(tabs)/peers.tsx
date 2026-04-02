@@ -7,7 +7,7 @@ import { Storage, PeerInfo } from '@/core/storage/storage';
 import { Colors } from '@/constants/theme';
 import { Wifi, QrCode, Users, Eye } from 'lucide-react-native';
 import { Link, useRouter } from 'expo-router';
-import { useNode, usePeerId } from '@/core/NodeContext';
+
 
 const C = Colors.dark;
 
@@ -24,24 +24,8 @@ export default function PeersScreen() {
   const [peers, setPeers] = useState<PeerInfo[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [connectedCount, setConnectedCount] = useState(0);
-  const node = useNode();
-  const myPeerId = usePeerId();
-  const router = useRouter();
 
-  const load = useCallback(async () => {
-    const peerMap = await Storage.getPeers();
-    const list = Object.values(peerMap).sort((a, b) => b.lastSeen - a.lastSeen);
-    setPeers(list);
-    setConnectedCount(node?.getPeers().length ?? 0);
-  }, [node]);
 
-  useEffect(() => { load(); }, [load]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  };
 
   const renderItem = ({ item }: { item: PeerInfo }) => {
     const isOnline = Date.now() - item.lastSeen < 60_000;
@@ -80,48 +64,12 @@ export default function PeersScreen() {
           <View style={[styles.icon, { backgroundColor: C.tint + '22' }]}>
             <Users size={20} color={C.tint} />
           </View>
-          <View>
-            <Text style={styles.myNodeLabel}>Mon nœud</Text>
-            <Text style={styles.myNodeId} numberOfLines={1}>
-              {myPeerId ? `${myPeerId.substring(0, 26)}…` : 'Démarrage…'}
-            </Text>
-          </View>
+        
         </View>
-        <TouchableOpacity 
-          style={styles.myIdBtn} 
-          onPress={() => router.push('/my-id')}
-        >
-          <Eye size={16} color={C.tint} />
-          <Text style={styles.myIdBtnText}>Mon QR</Text>
-        </TouchableOpacity>
+       
       </View>
 
-      <FlatList
-        data={peers}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={{ padding: 12, paddingBottom: 40 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.tint} />}
-        ListHeaderComponent={peers.length > 0 ? (
-          <View style={styles.listHeader}>
-            <Text style={styles.sectionTitle}>Pairs découverts · {peers.length}</Text>
-            <TouchableOpacity style={styles.scanHeaderBtn} onPress={() => router.push('/scan-peer')}>
-              <QrCode size={14} color={C.tint} />
-              <Text style={styles.scanHeaderText}>Se connecter</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Aucun pair connu</Text>
-            <Text style={styles.emptySubtitle}>Scanne le QR code d'un autre appareil pour te connecter</Text>
-            <TouchableOpacity style={styles.connectBtn} onPress={() => router.push('/scan-peer')}>
-              <QrCode size={18} color="#fff" />
-              <Text style={styles.connectText}>Scanner un QR code</Text>
-            </TouchableOpacity>
-          </View>
-        }
-      />
+    
     </View>
   );
 }

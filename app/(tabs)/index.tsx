@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, FlatList, StyleSheet, TouchableOpacity, Text,
-  Alert, RefreshControl,
+  Alert, RefreshControl, ActivityIndicator
 } from 'react-native';
 import { Storage, BookMetadata } from '@/core/storage/storage';
 import { FileStore } from '@/core/storage/fileStore';
 import * as DocumentPicker from 'expo-document-picker';
 import { Plus, Book as BookIcon, Radio } from 'lucide-react-native';
 import { Colors, CategoryColors, CATEGORIES } from '@/constants/theme';
-import { usePeerId } from '@/core/NodeContext';
 import { useRouter } from 'expo-router';
 
 const C = Colors.dark;
@@ -21,13 +20,14 @@ function formatSize(bytes: number) {
 export default function LibraryScreen() {
   const [books, setBooks] = useState<BookMetadata[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const peerId = usePeerId();
+  const [isUploading, setIsUploading] = useState(false);
+ 
   const router = useRouter();
 
   const load = useCallback(async () => {
     const bookMap = await Storage.getBooks();
     const local = Object.values(bookMap)
-      .filter(b => !!b.localPath)
+      .filter(b => !!b.localPath || !!b.telegramMessageId)
       .sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0));
     setBooks(local);
   }, []);
@@ -48,10 +48,23 @@ export default function LibraryScreen() {
       });
 
       if (!result.canceled && result.assets?.length > 0) {
+        setIsUploading(true);
         const file = result.assets[0];
         const hash = await FileStore.calculateHash(file.uri);
         const name = file.name;
+        
+        // Sauvegarde locale optionnelle mais utile pour éviter le retéléchargement pour l'user
         const localPath = await FileStore.saveFile(file.uri, name);
+        
+        // --- UPLOAD VERS TELEGRAM ---
+        const { telegramService } = require('@/services/telegramService');
+        let telegramMessageId;
+        try {
+          telegramMessageId = await telegramService.uploadFile(file.uri, name);
+        } catch (tgError) {
+          console.error("Erreur upload Telegram:", tgError);
+          Alert.alert('Attention', "Le livre a été ajouté localement mais n'a pas pu être sauvegardé sur Telegram.");
+        }
 
         const newBook: BookMetadata = {
           id: hash,
@@ -61,18 +74,21 @@ export default function LibraryScreen() {
           format: name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'epub',
           fileSize: file.size ?? 0,
           hash,
-          ownerPeerId: peerId || 'me',
+          ownerPeerId: 'me',
           isPublic: true,
           localPath,
+          telegramMessageId,
           addedAt: Date.now(),
-          seedCount: 1,
+          seedCount: 1, // Fix on se met comme seeder
         };
 
         await Storage.saveBook(newBook);
         await load();
+        setIsUploading(false);
         Alert.alert('Importé', `"${newBook.title}" ajouté à ta bibliothèque.`);
       }
     } catch (err) {
+      setIsUploading(false);
       Alert.alert('Erreur', "Impossible d'importer ce fichier.");
     }
   };
@@ -121,8 +137,8 @@ export default function LibraryScreen() {
         }
       />
 
-      <TouchableOpacity style={styles.fab} onPress={importBook}>
-        <Plus size={28} color="#fff" />
+      <TouchableOpacity style={styles.fab} onPress={importBook} disabled={isUploading}>
+        {isUploading ? <ActivityIndicator color="#fff" /> : <Plus size={28} color="#fff" />}
       </TouchableOpacity>
     </View>
   );

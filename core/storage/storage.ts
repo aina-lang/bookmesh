@@ -13,6 +13,7 @@ export interface BookMetadata {
   ownerPeerId: string;
   isPublic: boolean;
   localPath?: string;
+  telegramMessageId?: number; // ← Ajouté pour Telegram
   addedAt: number;      // timestamp ms
   seedCount?: number;   // nb de seeders annoncés via GossipSub
   coverColor?: string;  // couleur hex générée depuis le hash

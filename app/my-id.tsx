@@ -1,33 +1,15 @@
 import React from 'react';
-import { StyleSheet, View, Text, ActivityIndicator, Share, TouchableOpacity, ScrollView } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
-import { useNode, usePeerId } from '@/core/NodeContext';
+import { StyleSheet, View, Text, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
+import { useTelegram } from '@/core/TelegramContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Share as ShareIcon, Smartphone } from 'lucide-react-native';
+import { Smartphone, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react-native';
 import { Colors } from '@/constants/theme';
 
 const C = Colors.dark;
 
 export default function MyIdScreen() {
-  const node = useNode();
-  const myPeerId = usePeerId();
-  
-  const addresses = node?.getMultiaddrs() || [];
-  const qrData = addresses.length > 0 
-    ? JSON.stringify(addresses.map((a:any) => a.toString()))
-    : myPeerId || '';
-
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        message: qrData,
-        title: 'BookMesh Peer Address',
-      });
-    } catch (error: any) {
-      console.error('Error sharing:', error.message);
-    }
-  };
+  const { isConnected, init } = useTelegram();
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} style={styles.container}>
@@ -35,38 +17,42 @@ export default function MyIdScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Smartphone size={24} color={C.tint} />
-            <ThemedText type="defaultSemiBold" style={{ marginLeft: 10, color: C.text }}>Mon Identité P2P</ThemedText>
+            <ThemedText type="defaultSemiBold" style={{ marginLeft: 10, color: C.text }}>
+              Statut du Réseau BookMesh
+            </ThemedText>
           </View>
           
-          <View style={styles.qrContainer}>
-            {qrData ? (
-              <QRCode value={qrData} size={220} backgroundColor="white" />
+          <View style={styles.centerFlow}>
+            {isConnected ? (
+              <>
+                <View style={styles.successBadge}>
+                  <CheckCircle size={48} color={Colors.light.tint} />
+                </View>
+                <ThemedText type="subtitle" style={{ color: C.text, marginBottom: 10 }}>Connecté</ThemedText>
+                <ThemedText style={styles.hintText}>Le stockage cloud Telegram est actif en arrière-plan.</ThemedText>
+              </>
             ) : (
-              <ActivityIndicator size="large" color={C.tint} />
+              <>
+                <View style={styles.errorBadge}>
+                  <AlertCircle size={48} color={C.muted} />
+                </View>
+                <ThemedText type="subtitle" style={{ color: C.text, marginBottom: 10 }}>Connexion en cours...</ThemedText>
+                <ThemedText style={styles.hintText}>Le Bot tente de se connecter au stockage Telegram.</ThemedText>
+                <ActivityIndicator size="large" color={C.tint} style={{ marginTop: 20 }} />
+                
+                <TouchableOpacity style={styles.retryBtn} onPress={init}>
+                  <RefreshCw size={16} color={C.text} />
+                  <Text style={{ color: C.text, fontWeight: '600' }}>Réessayer</Text>
+                </TouchableOpacity>
+              </>
             )}
           </View>
-          
-          <ThemedText style={styles.hintText}>
-            {addresses.length > 0 
-              ? "D'autres utilisateurs peuvent scanner ce code pour se connecter directement à vous."
-              : "Identité détectée. En attente d'adresses réseau pour une connexion directe..."}
-          </ThemedText>
-          
-          {qrData ? (
-            <TouchableOpacity style={styles.shareBtn} onPress={handleShare}>
-              <ShareIcon size={18} color="#fff" />
-              <Text style={styles.shareBtnText}>Partager mon Identité</Text>
-            </TouchableOpacity>
-          ) : null}
         </View>
 
         <View style={styles.infoBox}>
-          <Text style={styles.infoTitle}>Détails techniques</Text>
-          {addresses.map((addr: any, i: number) => (
-            <Text key={i} style={styles.addressText} numberOfLines={1}>
-              {addr.toString()}
-            </Text>
-          ))}
+          <Text style={styles.infoTitle}>Détails Techniques</Text>
+          <Text style={styles.addressText}>Type: Bot Authentication (MTProto)</Text>
+          <Text style={styles.addressText}>Status: {isConnected ? 'Online' : 'Offline'}</Text>
         </View>
       </ThemedView>
     </ScrollView>
@@ -81,50 +67,31 @@ const styles = StyleSheet.create({
     backgroundColor: C.card,
     borderRadius: 20,
     padding: 24,
-    alignItems: 'center',
     borderWidth: 1,
     borderColor: C.border,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
     marginBottom: 30,
-  },
-  qrContainer: {
-    padding: 20,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    marginBottom: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
   },
   hintText: {
     fontSize: 14,
     textAlign: 'center',
     color: C.muted,
     lineHeight: 20,
-    marginBottom: 30,
-    paddingHorizontal: 10,
+    marginBottom: 10,
   },
-  shareBtn: {
-    backgroundColor: C.tint,
+  centerFlow: { alignItems: 'center', width: '100%', paddingVertical: 20 },
+  successBadge: { marginBottom: 20 },
+  errorBadge: { marginBottom: 20, opacity: 0.5 },
+  retryBtn: {
+    marginTop: 40,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 14,
     gap: 10,
-    width: '100%',
-    justifyContent: 'center',
-  },
-  shareBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
+    opacity: 0.7,
+    padding: 10,
   },
   infoBox: {
     padding: 16,
@@ -134,5 +101,5 @@ const styles = StyleSheet.create({
     borderColor: C.border,
   },
   infoTitle: { color: C.muted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', marginBottom: 8 },
-  addressText: { color: C.muted, fontSize: 10, fontFamily: 'monospace', marginBottom: 4 },
+  addressText: { color: C.muted, fontSize: 12, fontFamily: 'monospace', marginBottom: 4 },
 });

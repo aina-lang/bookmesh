@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useNode } from '@/core/NodeContext';
+
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { multiaddr } from '@multiformats/multiaddr';
@@ -12,50 +12,14 @@ import { useRouter } from 'expo-router';
 const C = Colors.dark;
 
 export default function ScanPeerScreen() {
-  const node = useNode();
+ 
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<string>('');
   const [statusType, setStatusType] = useState<'success' | 'error' | 'info'>('info');
   
-  const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    if (!node) return;
-    setScanned(true);
-    setConnectionStatus('Connexion au pair...');
-    setStatusType('info');
-    
-    try {
-      let peerAddresses: string[] = [];
-      try {
-        peerAddresses = JSON.parse(data);
-      } catch (e) {
-        if (typeof data === 'string' && data.length > 0) {
-          if (!data.startsWith('/')) {
-            peerAddresses = [`/p2p/${data}`];
-          } else {
-            peerAddresses = [data];
-          }
-        }
-      }
-
-      if (peerAddresses.length > 0) {
-        const ma = multiaddr(peerAddresses[0]);
-        await node.dial(ma);
-        setConnectionStatus('Connecté avec succès !');
-        setStatusType('success');
-        setTimeout(() => router.back(), 1500);
-      } else {
-        setConnectionStatus('Aucune adresse valide trouvée.');
-        setStatusType('error');
-        setTimeout(() => setScanned(false), 3000);
-      }
-    } catch (error: any) {
-      setConnectionStatus(`Échec de la connexion : ${error.message}`);
-      setStatusType('error');
-      setTimeout(() => setScanned(false), 3000);
-    }
-  };
+ 
 
   if (!permission) {
     return (
@@ -89,7 +53,7 @@ export default function ScanPeerScreen() {
           <CameraView 
             style={styles.camera} 
             facing="back"
-            onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+            // onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
             barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
           />
           {scanned && (

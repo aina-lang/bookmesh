@@ -62,6 +62,8 @@ if (typeof global.Buffer === 'undefined') {
   global.Buffer = Buffer;
 }
 
+// GramJS Browser WebSocket Polyfills (REMOVED: Having 'window' forces useWSS=true in GramJS)
+
 if (typeof global.process === 'undefined') {
   global.process = process;
 } else {

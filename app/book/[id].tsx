@@ -5,12 +5,12 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Storage, BookMetadata } from '@/core/storage/storage';
 import { Colors, CategoryColors } from '@/constants/theme';
-import {
+import { 
   Download, Users, FileText, CheckCircle,
   BookOpen, HardDrive, Calendar,
 } from 'lucide-react-native';
-import { useNode, usePeerId } from '@/core/NodeContext';
-import { TransferProtocol } from '@/services/transferProtocol';
+
+import { FileStore } from '@/core/storage/fileStore';
 
 const C = Colors.dark;
 
@@ -30,8 +30,7 @@ export default function BookDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [book, setBook] = useState<BookMetadata | null>(null);
   const [downloading, setDownloading] = useState(false);
-  const node = useNode();
-  const myPeerId = usePeerId();
+
   const router = useRouter();
 
   useEffect(() => {
@@ -48,42 +47,37 @@ export default function BookDetailScreen() {
     );
   }
 
-  const isLocal = !!book.localPath;
-  const catColor = CategoryColors[book.category] ?? C.muted;
-
   const handleDownload = async () => {
-    if (!node || !book) return;
-    if (isLocal) {
-      Alert.alert('Déjà disponible', 'Ce livre est dans ta bibliothèque.');
-      return;
-    }
-    if (book.ownerPeerId === myPeerId || book.ownerPeerId === 'me') {
-      Alert.alert('Info', 'Tu es le seul seed connu pour ce livre.');
+    if (!book.telegramMessageId) {
+      Alert.alert('Erreur', "Ce livre n'a pas de référence sur nos serveurs Cloud (Telegram).");
       return;
     }
 
     try {
       setDownloading(true);
-      const protocol = new TransferProtocol(node);
-      const filename = `${book.hash}.${book.format}`;
-      await protocol.downloadBook(
-        book.ownerPeerId,
-        { id: book.id, title: book.title, hash: book.hash, fileSize: book.fileSize },
-        filename
-      );
-      // Update book entry with local path
-      await Storage.saveBook({
-        ...book,
-        localPath: `${filename}`,
-      });
-      Alert.alert('Terminé', `"${book.title}" téléchargé avec succès !`);
-      router.back();
-    } catch (err: any) {
-      Alert.alert('Erreur', `Téléchargement échoué : ${err.message}`);
+      const filename = `${book.title.replace(/\s+/g, '_')}.${book.format}`;
+      await FileStore.ensureDir();
+      const outputPath = await FileStore.getFileUri(filename);
+      
+      const { telegramService } = require('@/services/telegramService');
+      await telegramService.downloadFile(book.telegramMessageId, outputPath);
+      
+      const newBook = { ...book, localPath: outputPath };
+      await Storage.saveBook(newBook);
+      setBook(newBook);
+      
+      Alert.alert('Succès', 'Le livre a été téléchargé dans votre bibliothèque.');
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Erreur', 'Impossible de télécharger le fichier depuis Telegram.');
     } finally {
       setDownloading(false);
     }
   };
+
+  const isLocal = !!book.localPath;
+  const catColor = CategoryColors[book.category] ?? C.muted;
+
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }}>
