@@ -36,7 +36,7 @@ export class UpdateService {
    * Returns true if v2 > v1 
    * Simple compare assuming semantic versioning like "1.2.3"
    */
-  private static isNewerVersion(v1: string, v2: string): boolean {
+  public static isNewerVersion(v1: string, v2: string): boolean {
     const parts1 = v1.split('.').map(Number);
     const parts2 = v2.split('.').map(Number);
     

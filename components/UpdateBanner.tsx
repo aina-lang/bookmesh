@@ -6,6 +6,7 @@ import { UpdateService, AppUpdateData } from '@/core/services/updateService';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { useTranslation } from '@/core/i18n/I18nContext';
+import { SocketService } from '@/core/services/socketService';
 
 import Constants from 'expo-constants';
 
@@ -18,12 +19,25 @@ export function UpdateBanner({ onUpdateFound }: { onUpdateFound?: () => void }) 
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
+    // 1. Vérification initiale REST
     UpdateService.checkUpdate(CURRENT_VERSION).then(res => {
       if (res) {
         setUpdate(res);
         if (onUpdateFound) onUpdateFound();
       }
     });
+
+    // 2. Abonnement au WebSocket pour le Push Temps Réel
+    const unsubscribe = SocketService.subscribeToAppUpdates((data: AppUpdateData) => {
+      if (UpdateService.isNewerVersion(CURRENT_VERSION, data.version)) {
+        setUpdate(data);
+        if (onUpdateFound) onUpdateFound();
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const handleDownload = async () => {

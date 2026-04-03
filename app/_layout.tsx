@@ -14,6 +14,7 @@ import { LanguageProvider, useTranslation } from '@/core/i18n/I18nContext';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { TransitionOverlay } from '@/components/TransitionOverlay';
 import { CustomSplashScreen } from '@/components/CustomSplashScreen';
+import { SocketService } from '@/core/services/socketService';
 
 // Empêche l'auto-hide du splash natif
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -82,6 +83,12 @@ export default function RootLayout() {
     activateKeepAwakeAsync().catch(() => {
       console.log('KeepAwake non activable dans cet environnement.');
     });
+    // Connexion permanente au webhook Push Notification OTA
+    SocketService.init();
+
+    return () => {
+      SocketService.disconnect();
+    };
   }, []);
 
   return (
