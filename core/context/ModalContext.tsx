@@ -1,11 +1,9 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut } from 'react-native-reanimated';
-import { Colors } from '@/constants/theme';
+import { useTheme } from '@/core/context/ThemeContext';
 import { CheckCircle, AlertCircle, Info, Trash2, X } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
-
-const C = Colors.dark;
 
 type ModalType = 'success' | 'error' | 'info' | 'confirm' | 'delete';
 
@@ -29,6 +27,7 @@ const ModalContext = createContext<ModalContextType | undefined>(undefined);
 export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [visible, setVisible] = useState(false);
   const [options, setOptions] = useState<ModalOptions | null>(null);
+  const { colors, isDark } = useTheme();
 
   const showModal = useCallback((opts: ModalOptions) => {
     setOptions(opts);
@@ -37,7 +36,6 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const hideModal = useCallback(() => {
     setVisible(false);
-    // Don't clear options immediately to allow exit animation
   }, []);
 
   const handleConfirm = () => {
@@ -61,12 +59,12 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       >
         <View style={styles.overlay}>
           {Platform.OS === 'ios' ? (
-            <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+            <BlurView intensity={20} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
           ) : (
             <Animated.View 
               entering={FadeIn} 
               exiting={FadeOut} 
-              style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.7)' }]} 
+              style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.4)' }]} 
             />
           )}
           
@@ -74,32 +72,40 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             <Animated.View 
               entering={ZoomIn.springify()} 
               exiting={ZoomOut}
-              style={styles.modalContainer}
+              style={[
+                styles.modalContainer, 
+                { 
+                  backgroundColor: colors.card, 
+                  borderColor: colors.border,
+                  shadowOpacity: isDark ? 0.5 : 0.1,
+                }
+              ]}
             >
               <View style={styles.header}>
-                <ModalIcon type={options.type || 'info'} />
+                <ModalIcon type={options.type || 'info'} colors={colors} />
                 <TouchableOpacity onPress={hideModal} style={styles.closeBtn}>
-                  <X size={20} color={C.muted} />
+                  <X size={20} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.title}>{options.title}</Text>
-              <Text style={styles.message}>{options.message}</Text>
+              <Text style={[styles.title, { color: colors.text }]}>{options.title}</Text>
+              <Text style={[styles.message, { color: colors.textDim }]}>{options.message}</Text>
 
               <View style={styles.footer}>
                 {(options.type === 'confirm' || options.type === 'delete' || options.onCancel) && (
                   <TouchableOpacity 
-                    style={[styles.btn, styles.cancelBtn]} 
+                    style={[styles.btn, styles.cancelBtn, { borderColor: colors.border }]} 
                     onPress={handleCancel}
                   >
-                    <Text style={styles.cancelBtnText}>{options.cancelText || 'Annuler'}</Text>
+                    <Text style={[styles.cancelBtnText, { color: colors.text }]}>{options.cancelText || 'Annuler'}</Text>
                   </TouchableOpacity>
                 )}
                 
                 <TouchableOpacity 
                   style={[
                     styles.btn, 
-                    options.type === 'delete' ? styles.deleteBtn : styles.confirmBtn
+                    options.type === 'delete' ? styles.deleteBtn : styles.confirmBtn,
+                    { backgroundColor: options.type === 'delete' ? colors.error : colors.primary }
                   ]} 
                   onPress={handleConfirm}
                 >
@@ -116,13 +122,13 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
-const ModalIcon = ({ type }: { type: ModalType }) => {
+const ModalIcon = ({ type, colors }: { type: ModalType, colors: any }) => {
   switch (type) {
-    case 'success': return <CheckCircle size={40} color={C.success} />;
-    case 'error': return <AlertCircle size={40} color={C.error} />;
-    case 'delete': return <Trash2 size={40} color={C.error} />;
-    case 'confirm': return <Info size={40} color={C.tint} />;
-    default: return <Info size={40} color={C.tint} />;
+    case 'success': return <CheckCircle size={40} color={colors.success} />;
+    case 'error': return <AlertCircle size={40} color={colors.error} />;
+    case 'delete': return <Trash2 size={40} color={colors.error} />;
+    case 'confirm': return <Info size={40} color={colors.primary} />;
+    default: return <Info size={40} color={colors.primary} />;
   }
 };
 
@@ -142,14 +148,11 @@ const styles = StyleSheet.create({
   modalContainer: {
     width: '90%',
     maxWidth: 400,
-    backgroundColor: C.card,
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: C.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
     shadowRadius: 20,
     elevation: 10,
   },
@@ -167,14 +170,12 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   title: {
-    color: C.text,
     fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 12,
   },
   message: {
-    color: C.muted,
     fontSize: 15,
     lineHeight: 22,
     textAlign: 'center',
@@ -192,15 +193,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   confirmBtn: {
-    backgroundColor: C.tint,
+    // Background via dynamic style
   },
   deleteBtn: {
-    backgroundColor: C.error,
+    // Background via dynamic style
   },
   cancelBtn: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: C.border,
   },
   confirmBtnText: {
     color: '#fff',
@@ -208,7 +208,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   cancelBtnText: {
-    color: C.text,
     fontSize: 16,
     fontWeight: '600',
   },

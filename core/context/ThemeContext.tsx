@@ -15,6 +15,8 @@ interface ThemeColors {
   input: string;
   badge: string;
   badgeText: string;
+  success: string;
+  error: string;
 }
 
 const darkTheme: ThemeColors = {
@@ -28,6 +30,8 @@ const darkTheme: ThemeColors = {
   input: '#151820',
   badge: 'rgba(249,115,22,0.15)',
   badgeText: '#f97316',
+  success: '#22c55e',
+  error: '#ef4444',
 };
 
 const lightTheme: ThemeColors = {
@@ -41,6 +45,8 @@ const lightTheme: ThemeColors = {
   input: '#f1f5f9',
   badge: 'rgba(249,115,22,0.1)',
   badgeText: '#ea580c',
+  success: '#16a34a',
+  error: '#dc2626',
 };
 
 interface ThemeContextType {

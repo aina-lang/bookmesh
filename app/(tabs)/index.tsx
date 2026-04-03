@@ -18,16 +18,19 @@ import { UpdateService, AppUpdateData } from '@/core/services/updateService';
 import Constants from 'expo-constants';
 
 const CURRENT_VERSION = Constants.expoConfig?.version || (Constants as any).manifest?.version || '1.0.0';
+
 import {
   ActivityIndicator,
   Animated,
   FlatList,
   Image,
+  Keyboard,
   RefreshControl,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -340,7 +343,8 @@ export default function IndexScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
 
       {/* ── Header ── */}
       <View style={{ paddingHorizontal: 16, paddingTop: insets.top + 10, paddingBottom: 14, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
@@ -450,6 +454,8 @@ export default function IndexScreen() {
           style={{ flex: 1 }}
           data={filtered}
           keyExtractor={(item) => item.id}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <BookCard
               item={item}
@@ -498,6 +504,7 @@ export default function IndexScreen() {
         />
       )}
 
-    </View>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
