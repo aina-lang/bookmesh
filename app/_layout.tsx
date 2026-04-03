@@ -74,7 +74,7 @@ function RootLayoutContent() {
   return (
     <TransitionOverlay watch={[theme, locale]}>
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} backgroundColor={colors.background} />
-      <ConnectivityBanner />
+
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />

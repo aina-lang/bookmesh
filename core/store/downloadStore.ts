@@ -172,7 +172,8 @@ class DownloadStoreClass {
       this.downloads.set(bookId, { ...dl, status: 'downloading' });
       this.notify();
 
-      const result = await resumable.downloadAsync();
+      const isResume = dl.bytesReceived > 0;
+      const result = isResume ? await resumable.resumeAsync() : await resumable.downloadAsync();
       
       if (result) {
         // Note: complete() will be called by the UI after await start()
@@ -185,9 +186,14 @@ class DownloadStoreClass {
         throw new Error("Téléchargement interrompu");
       }
     } catch (e: any) {
-      console.error("[DownloadStore] runDownload failed:", e);
       const currentDl = this.downloads.get(bookId);
-      if (currentDl && currentDl.status !== 'cancelled' && currentDl.status !== 'paused') {
+      const isExpected = currentDl?.status === 'cancelled' || currentDl?.status === 'paused';
+      
+      if (!isExpected) {
+        console.error("[DownloadStore] runDownload failed:", e);
+      }
+      
+      if (currentDl && !isExpected) {
         this.fail(bookId, e.message || "Erreur inconnue");
         if (deferred) {
           deferred.reject(e);
@@ -221,14 +227,14 @@ class DownloadStoreClass {
     }
 
     if (!resumable) return;
+    this.downloads.set(bookId, { ...dl, status: 'paused' });
+    this.notify();
 
     try {
       await resumable.pauseAsync();
-      this.downloads.set(bookId, { ...dl, status: 'paused' });
-      this.notify();
       this.processQueue(); // Release slot
     } catch (e) {
-      console.error("[DownloadStore] Failed to pause:", e);
+      console.error("[DownloadStore] Failed to pauseAsync:", e);
     }
   }
 
@@ -250,23 +256,16 @@ class DownloadStoreClass {
   async cancel(bookId: string) {
     const dl = this.downloads.get(bookId);
     const resumable = this.resumables.get(bookId);
+    if (dl) {
+      this.downloads.set(bookId, { ...dl, status: 'cancelled' });
+      this.notify();
+      this.processQueue(); // Release slot
+    }
     if (resumable) {
       try {
         await resumable.pauseAsync(); // expo-file-system doesn't have a direct 'cancel', pause + remove is the way
       } catch (e) {}
-    }
-    if (dl) {
-      this.downloads.set(bookId, { ...dl, status: 'cancelled' });
       this.resumables.delete(bookId);
-      
-      const deferred = this.deferreds.get(bookId);
-      if (deferred) {
-        deferred.reject(new Error("Téléchargement annulé"));
-        this.deferreds.delete(bookId);
-      }
-
-      this.notify();
-      this.processQueue(); // Release slot
     }
   }
 

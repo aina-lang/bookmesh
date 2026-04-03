@@ -70,6 +70,7 @@ export const fr = {
     categoryAll: "Tous",
     noBooksFound: "Aucun livre trouvé",
     catalogEmpty: "Le catalogue est vide ou inaccessible.",
+    noMoreData: "Plus de livres disponibles",
     importBook: "Importer un document",
     filesCount: {
       one: "{{count}} livre",
@@ -194,6 +195,7 @@ export const fr = {
     updateTitle: "Mise à jour {{version}}",
     updateDownload: "Télécharger & Installer",
     updateDownloading: "Téléchargement en cours...",
+    updatePaused: "Téléchargement en pause",
     updateError: "Échec du téléchargement. Réessayez plus tard.",
   }
 };
@@ -270,6 +272,7 @@ export const en: typeof fr = {
     categoryAll: "All",
     noBooksFound: "No books found",
     catalogEmpty: "The catalog is empty or unreachable.",
+    noMoreData: "No more books available",
     importBook: "Import a book",
     filesCount: {
       one: "{{count}} book",
@@ -394,6 +397,7 @@ export const en: typeof fr = {
     updateTitle: "Update {{version}}",
     updateDownload: "Download & Install",
     updateDownloading: "Downloading...",
+    updatePaused: "Download paused",
     updateError: "Download failed. Try again later.",
   }
 };
@@ -470,6 +474,7 @@ export const mg: typeof fr = {
     categoryAll: "Rehetra",
     noBooksFound: "Tsy misy boky hita",
     catalogEmpty: "Foana ny katalogy na tsy azo idirana.",
+    noMoreData: "Tsy misy boky hafa intsony",
     importBook: "Hampiditra boky",
     filesCount: {
       one: "{{count}} boky",
@@ -594,6 +599,7 @@ export const mg: typeof fr = {
     updateTitle: "Mise à jour {{version}}",
     updateDownload: "Ampidino & Amboary",
     updateDownloading: "Eo am-pampidinana...",
+    updatePaused: "Miantona ny fampidinana",
     updateError: "Tsy nahomby. Andramo indray aoriana.",
   }
 };
@@ -670,6 +676,7 @@ export const de: typeof fr = {
     categoryAll: "Alle",
     noBooksFound: "Keine Bücher gefunden",
     catalogEmpty: "Der Katalog ist leer oder nicht erreichbar.",
+    noMoreData: "Keine weiteren Bücher verfügbar",
     importBook: "Buch importieren",
     filesCount: {
       one: "{{count}} Buch",
@@ -794,6 +801,7 @@ export const de: typeof fr = {
     updateTitle: "Update {{version}}",
     updateDownload: "Herunterladen & Installieren",
     updateDownloading: "Herunterladen...",
+    updatePaused: "Download pausiert",
     updateError: "Download fehlgeschlagen. Später erneut versuchen.",
   }
 };

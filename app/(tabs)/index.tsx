@@ -1,3 +1,4 @@
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useConnectivity } from '@/core/context/ConnectivityContext';
 import { useModal } from '@/core/context/ModalContext';
 import { useTheme } from '@/core/context/ThemeContext';
@@ -17,7 +18,6 @@ import { UpdateService, AppUpdateData } from '@/core/services/updateService';
 import Constants from 'expo-constants';
 
 const CURRENT_VERSION = Constants.expoConfig?.version || (Constants as any).manifest?.version || '1.0.0';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -156,6 +156,7 @@ export default function IndexScreen() {
         remote.sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0));
         setAllBooks(remote);
       }
+    } finally {
       setRefreshing(false);
       setLoadingMore(false);
     }
@@ -313,10 +314,13 @@ export default function IndexScreen() {
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setHasMore(true);
+    hasMoreRef.current = true;
+    setOffsetId(0);
+    offsetIdRef.current = 0;
     await load(true);
-  };
+  }, [load]);
 
   const loadMoreData = () => {
     if (!loadingMore && !refreshing && hasMore) {
@@ -454,7 +458,7 @@ export default function IndexScreen() {
               activeDownload={activeDownloads[item.id]}
             />
           )}
-          contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 100 }}
+          contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 100, flexGrow: 1 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

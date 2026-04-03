@@ -161,12 +161,12 @@ export function UpdateBanner({ onUpdateFound }: { onUpdateFound?: () => void }) 
             )}
             
             {status === 'error' && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                   <AlertCircle size={14} color="#ef4444" />
-                  <Text style={{ color: '#ef4444', fontSize: 12 }}>{t('components.updateError')}</Text>
+                  <Text style={{ color: '#ef4444', fontSize: 12 }} numberOfLines={1}>{t('components.updateError')}</Text>
                 </View>
-                <TouchableOpacity onPress={retryDownload} activeOpacity={0.8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ef444420', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                <TouchableOpacity onPress={retryDownload} activeOpacity={0.8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ef444420', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, flexShrink: 0 }}>
                   <RefreshCw size={12} color="#ef4444" />
                   <Text style={{ color: '#ef4444', fontSize: 12, fontWeight: '600' }}>{t('common.retry') || 'Réessayer'}</Text>
                 </TouchableOpacity>
