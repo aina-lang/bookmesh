@@ -148,7 +148,7 @@ export default function SettingsScreen() {
               {[
                 { code: 'fr', flag: '🇫🇷' },
                 { code: 'en', flag: '🇬🇧' },
-                { code: 'mg', flag: '🇲🇬' },
+                // { code: 'mg', flag: '🇲🇬' },
                 { code: 'de', flag: '🇩🇪' }
               ].map((lang) => (
                 <TouchableOpacity
