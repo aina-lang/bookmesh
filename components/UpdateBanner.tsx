@@ -7,8 +7,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { useTranslation } from '@/core/i18n/I18nContext';
 
-const CURRENT_VERSION = '1.0.0'; // Hardcoded for demo, normally from Constants.expoConfig.version
+import Constants from 'expo-constants';
 
+const CURRENT_VERSION = Constants.expoConfig?.version || (Constants as any).manifest?.version || '1.0.0';
 export function UpdateBanner({ onUpdateFound }: { onUpdateFound?: () => void }) {
   const { colors } = useTheme();
   const { t } = useTranslation();

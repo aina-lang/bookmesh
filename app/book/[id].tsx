@@ -149,8 +149,13 @@ export default function BookDetailScreen() {
 
     try {
       const { telegramService } = require('@/services/telegramService');
-      const filename = `${book.title.replace(/\s+/g, '_')}.${book.format}`;
+      const cleanTitle = book.title.replace(/[^a-zA-Z0-9_\-\u00C0-\u017F]+/g, '_');
+      const filename = `${cleanTitle}.${book.format}`;
       const tempPath = FileSystem.cacheDirectory + filename;
+
+      try {
+        await FileSystem.deleteAsync(tempPath, { idempotent: true });
+      } catch (e) {}
 
       const resumable = await telegramService.downloadFile(
         book.telegramMessageId, 
@@ -172,10 +177,10 @@ export default function BookDetailScreen() {
       const newBook = { ...book, localPath: finalUri };
       await MetadataStore.saveBook(newBook);
       setBook(newBook);
-    } catch (error) {
+    } catch (error: any) {
       const dl = DownloadStore.get(book.id);
       if (dl?.status !== 'cancelled' && dl?.status !== 'paused') {
-        DownloadStore.fail(book.id, t('book.status_error'));
+        DownloadStore.fail(book.id, error?.message || t('book.status_error'));
       }
     }
   };

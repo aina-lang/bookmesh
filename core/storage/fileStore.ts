@@ -3,7 +3,7 @@ import * as Crypto from 'expo-crypto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PRIVATE_BOOKS_DIR = `${FileSystem.documentDirectory}ZaraBook/`;
-const PUBLIC_BOOKS_DIR_ANDROID = '/storage/emulated/0/Download/ZaraBook/';
+const PUBLIC_BOOKS_DIR_ANDROID = 'file:///storage/emulated/0/Download/ZaraBook/';
 const STORAGE_KEY = 'zarabook_public_dir_uri';
 
 export const FileStore = {
@@ -47,26 +47,30 @@ export const FileStore = {
     const publicDirUri = await this.getPublicUri();
     
     if (publicDirUri) {
-      if (publicDirUri.startsWith('content://')) {
-        const { StorageAccessFramework } = FileSystem;
-        const mime = filename.endsWith('.pdf') ? 'application/pdf' : 'application/epub+zip';
-        const fileUri = await StorageAccessFramework.createFileAsync(publicDirUri, filename, mime);
-        const content = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
-        await FileSystem.writeAsStringAsync(fileUri, content, { encoding: 'base64' });
-        return fileUri;
-      } else {
-        // Chemin file:// (automatique Downloads ou privé)
-        const dest = `${publicDirUri}${filename}`;
-        await FileSystem.copyAsync({ from: uri, to: dest });
-        return dest;
+      try {
+        if (publicDirUri.startsWith('content://')) {
+          const { StorageAccessFramework } = FileSystem;
+          const mime = filename.endsWith('.pdf') ? 'application/pdf' : 'application/epub+zip';
+          const fileUri = await StorageAccessFramework.createFileAsync(publicDirUri, filename, mime);
+          const content = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+          await FileSystem.writeAsStringAsync(fileUri, content, { encoding: 'base64' });
+          return fileUri;
+        } else {
+          // Chemin file:// (automatique Downloads ou privé)
+          const dest = `${publicDirUri}${filename}`;
+          await FileSystem.copyAsync({ from: uri, to: dest });
+          return dest;
+        }
+      } catch (e) {
+        console.warn("[FileStore] Erreur écriture dans dossier externe", e);
       }
-    } else {
-      // Fallback privé ultime
-      await this.ensureDir();
-      const dest = `${PRIVATE_BOOKS_DIR}${filename}`;
-      await FileSystem.copyAsync({ from: uri, to: dest });
-      return dest;
     }
+    
+    // Fallback privé ultime (exécuté si aucun publicDirUri n'existe ou s'il a échoué)
+    await this.ensureDir();
+    const dest = `${PRIVATE_BOOKS_DIR}${filename}`;
+    await FileSystem.copyAsync({ from: uri, to: dest });
+    return dest;
   },
 
   async getFileUri(filename: string): Promise<string> {

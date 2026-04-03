@@ -184,7 +184,7 @@ export default function IndexScreen() {
       const filename = `${book.title.replace(/\s+/g, '_')}.${book.format}`;
       const tempPath = FileSystem.cacheDirectory + filename;
 
-      const { resumable, promise } = await telegramService.downloadFile(
+      const resumable = await telegramService.downloadFile(
         book.telegramMessageId,
         tempPath,
         (progress: number, bytes: number, total: number) => {
@@ -192,7 +192,7 @@ export default function IndexScreen() {
         }
       );
 
-      DownloadStore.start({
+      const promise = DownloadStore.start({
         bookId: book.id,
         bookTitle: book.title,
         bookSize: book.fileSize,
