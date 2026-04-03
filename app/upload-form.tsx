@@ -24,6 +24,7 @@ export default function UploadForm() {
   const [category, setCategory] = useState('other');
   const [description, setDescription] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [titleFocused, setTitleFocused] = useState(false);
   const [authorFocused, setAuthorFocused] = useState(false);
   
@@ -37,9 +38,17 @@ export default function UploadForm() {
 
     Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true }).start();
     setIsUploading(true);
+    setUploadProgress(0);
     try {
       const displayCategory = (CATEGORY_MAP as any)[category] || category;
-      const uploadRes = await telegramService.uploadFile(uri, name, displayCategory, author, description);
+      const uploadRes = await telegramService.uploadFile(
+        uri, 
+        name, 
+        displayCategory, 
+        author, 
+        description,
+        (progress) => setUploadProgress(progress)
+      );
       const hash = await FileStore.calculateHash(uri);
 
       await MetadataStore.saveBook({
@@ -62,6 +71,7 @@ export default function UploadForm() {
       showModal({ type: 'error', title: t('upload.errorTitle'), message: t('upload.uploadError') });
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
       Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
     }
   };
@@ -144,12 +154,27 @@ export default function UploadForm() {
             style={{ 
               height: 56, borderRadius: 18, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', 
               flexDirection: 'row', gap: 10, shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
-              opacity: isUploading ? 0.7 : 1
+              opacity: isUploading ? 0.9 : 1, overflow: 'hidden'
             }}
             onPress={handleUpload} disabled={isUploading} activeOpacity={0.8}
           >
+            {isUploading && (
+              <View 
+                style={{ 
+                  position: 'absolute', top: 0, bottom: 0, left: 0, 
+                  backgroundColor: 'rgba(255,255,255,0.2)', 
+                  width: `${uploadProgress * 100}%` 
+                }} 
+              />
+            )}
+            
             {isUploading ? (
-              <ActivityIndicator color="#fff" />
+              <>
+                <ActivityIndicator color="#fff" />
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
+                  {t('upload.uploading')} {Math.round(uploadProgress * 100)}%
+                </Text>
+              </>
             ) : (
               <>
                 <Upload size={20} color="#fff" strokeWidth={2.5} />

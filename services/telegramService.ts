@@ -16,12 +16,13 @@ export class TelegramService {
     fileName: string, 
     category?: string,
     author?: string,
-    description?: string
+    description?: string,
+    onProgress?: (progress: number) => void
   ): Promise<{ messageId: number, thumbnailMessageId?: number }> {
     console.log(`[TelegramService] Upload de ${fileName} (${category || 'Autre'}, Author: ${author}) via NestJS API...`);
  
     try {
-      const response = await FileSystem.uploadAsync(
+      const uploadTask = FileSystem.createUploadTask(
         `${NESTJS_URL}/upload`,
         fileUri,
         {
@@ -35,7 +36,19 @@ export class TelegramService {
             description: description || '',
           },
         },
+        (progressData) => {
+          if (onProgress) {
+            const progress = progressData.totalBytesSent / progressData.totalBytesExpectedToSend;
+            onProgress(progress);
+          }
+        }
       );
+
+      const response = await uploadTask.uploadAsync();
+      
+      if (!response) {
+        throw new Error("L'upload n'a retourné aucune réponse.");
+      }
 
       let responseData;
       try {
