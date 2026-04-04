@@ -1,46 +1,35 @@
+
 # 📚 ZaraBook
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Expo](https://img.shields.io/badge/Expo-React%20Native-black)
-![P2P](https://img.shields.io/badge/network-P2P-green)
-![Status](https://img.shields.io/badge/status-Development-orange)
+![Storage](https://img.shields.io/badge/storage-Telegram%20Bot-green)
+![Status](https://img.shields.io/badge/status-Completed-brightgreen)
 
-**ZaraBook** est une application mobile de **bibliothèque décentralisée P2P** permettant de partager des livres et documents directement entre utilisateurs.
+**ZaraBook** est une application mobile de **bibliothèque collaborative** permettant de **télécharger et consulter des livres et documents numériques**.
 
-Les livres sont **hébergés sur les appareils des utilisateurs** et échangés via un réseau **pair-à-pair**, sans stockage centralisé.
+Les fichiers sont **stockés dans un canal Telegram privé** avec un **bot comme admin**, ce qui évite les serveurs payants ou les solutions cloud centralisées.
 
 ---
 
 # 🚀 Fonctionnalités
 
-### 📖 Bibliothèque locale
+### ⬇️ Téléchargement depuis le canal privé
 
-- importer des livres (PDF, EPUB)
-- stocker les livres localement sur l’appareil
-- lire les livres directement dans l’application
+* télécharger des livres et documents depuis le canal
+* suivi de la progression des téléchargements
+* accès hors ligne aux documents
 
-### 🌍 Catalogue réseau public
+### 🌍 Catalogue collaboratif
 
-- voir les livres partagés publiquement sur le réseau
-- rechercher des livres par titre ou auteur
-- afficher le nombre de sources disponibles
+* voir les livres et documents disponibles via le bot
+* rechercher par titre ou auteur
+* affichage du nombre de documents disponibles
 
-### ⬇️ Téléchargement P2P
+### 🔄 Synchronisation et métadonnées
 
-- téléchargement direct entre utilisateurs
-- transfert de fichiers pair-à-pair
-- vérification d’intégrité des fichiers
-
-### 🔗 Connexion entre utilisateurs
-
-- invitation via QR code ou lien
-- ajout de pairs
-- connexion au réseau P2P
-
-### 🔄 Synchronisation du catalogue
-
-- diffusion des livres publics sur le réseau
-- mise à jour automatique du catalogue partagé
+* mise à jour automatique du catalogue depuis le canal
+* stockage des métadonnées (titre, auteur, miniature)
 
 ---
 
@@ -48,40 +37,40 @@ Les livres sont **hébergés sur les appareils des utilisateurs** et échangés 
 
 ### Mobile
 
-- **Expo**
-- **React Native**
-- **TypeScript**
+* **Expo**
+* **React Native 0.81.5**
+* **TypeScript**
 
-### Stockage local
+### Stockage et Backend
 
-- **SQLite**
-- **Expo FileSystem**
-- **SecureStore**
-
-### Réseau P2P
-
-- **libp2p**
-- **WebRTC**
-- **GossipSub**
-
-### Sécurité
-
-- **Noise encryption**
-- **SHA-256 hashing**
+* **Canal Telegram privé + bot**
+* **Expo FileSystem**
+* **SecureStore**
+* **NestJS** pour la gestion des téléchargements et métadonnées
 
 ---
 
 # ⚠️ Note
 
-ZaraBook est conçu pour partager **du contenu autorisé** :
+ZaraBook partage uniquement **du contenu autorisé** :
 
-- livres libres de droits
-- documents éducatifs
-- publications open source
-- documents personnels
+* livres libres de droits
+* documents éducatifs
+* publications open source
+* documents personnels
+
+---
+
+# 📜 Spécifications Android
+
+* Version SDK minimale : 24 (Android 7.0)
+* Version SDK cible : 35 (Android 15)
+* Version de l’application : 1.0.0 (VersionCode 1)
 
 ---
 
 # 📜 Licence
 
 MIT License
+
+---
