@@ -41,9 +41,12 @@ export default function UploadForm() {
     setUploadProgress(0);
     try {
       const displayCategory = (CATEGORY_MAP as any)[category] || category;
+      const extension = name.split('.').pop() || '';
+      const finalFileName = extension ? `${title}.${extension}` : title;
+
       const uploadRes = await telegramService.uploadFile(
         uri, 
-        name, 
+        finalFileName, 
         displayCategory, 
         author, 
         description,
