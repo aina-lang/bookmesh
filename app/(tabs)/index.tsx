@@ -5,10 +5,11 @@ import { useTheme } from '@/core/context/ThemeContext';
 import { FileStore } from '@/core/storage/fileStore';
 import { BookMetadata, MetadataStore } from '@/core/storage/storage';
 import { ActiveDownload, DownloadStore } from '@/core/store/downloadStore';
+import { UploadStore } from '@/core/store/uploadStore';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
-import { CheckCircle, Download, Plus, Search, Sun, Moon, Globe, Wifi, Settings, WifiOff, Library } from 'lucide-react-native';
+import { CheckCircle, Download, Plus, Search, Sun, Moon, Globe, Wifi, Settings, WifiOff, Library, Upload } from 'lucide-react-native';
 import { OfflineView } from '@/components/OfflineView';
 import { BookCard } from '@/components/BookCard';
 import { UpdateBanner } from '@/components/UpdateBanner';
@@ -64,7 +65,7 @@ export default function IndexScreen() {
 
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeDownloads, setActiveDownloads] = useState<Record<string, ActiveDownload>>({});
-  const [isUploading, setIsUploading] = useState(false);
+  const [isUploading, setIsUploading] = useState(UploadStore.getIsUploading());
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [offsetId, setOffsetId] = useState(0);
@@ -199,6 +200,11 @@ export default function IndexScreen() {
       setWifiOnly(DownloadStore.getDownloadMode() === 'wifi');
     });
 
+    const uploadSub = UploadStore.subscribe(() => {
+      setIsUploading(UploadStore.getIsUploading());
+      setUploadProgress(UploadStore.getProgress());
+    });
+
     const socketSub = SocketService.subscribeToAppUpdates((data: AppUpdateData) => {
       if (UpdateService.isNewerVersion(CURRENT_VERSION, data.version)) {
         setHasUpdate(true);
@@ -207,6 +213,7 @@ export default function IndexScreen() {
 
     return () => {
       sub();
+      uploadSub();
       socketSub();
     };
   }, [load, isOffline]);
@@ -225,6 +232,8 @@ export default function IndexScreen() {
         .forEach(d => DownloadStore.pause(d.bookId));
     }
   }, [isOffline, isWifi, wifiOnly]);
+
+  const [uploadProgress, setUploadProgress] = useState(UploadStore.getProgress());
 
   const handleDownload = async (book: BookMetadata) => {
     const mode = DownloadStore.getDownloadMode();
@@ -391,17 +400,47 @@ export default function IndexScreen() {
           )}
          
         </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          {isUploading && (
+            <TouchableOpacity 
+              onPress={() => {
+                const params = UploadStore.getParams();
+                if (params) {
+                  router.push({
+                    pathname: '/upload-form',
+                    params
+                  });
+                }
+              }}
+              style={{ 
+                flexDirection: 'row', 
+                alignItems: 'center', 
+                backgroundColor: colors.primary + '15', 
+                paddingHorizontal: 12, 
+                paddingVertical: 8, 
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: colors.primary + '30',
+                gap: 8,
+              }}
+            >
+              <Upload size={14} color={colors.primary} />
+              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>
+                {Math.round(uploadProgress * 100)}%
+              </Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             onPress={() => router.push('/settings')}
             style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border }}
           >
             <Settings size={20} color={colors.primary} />
-            {/* {hasUpdate && (
+            {hasUpdate && (
               <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: '#ef4444', width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.background }}>
                 <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>1</Text>
               </View>
-            )} */}
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -473,7 +512,7 @@ export default function IndexScreen() {
           </TouchableOpacity>
         ))}
       </ScrollView>
-<View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 5, paddingBottom: 6 }}/>
+
 
       {/* ── Book list / Offline ── */}
       {isOffline ? (

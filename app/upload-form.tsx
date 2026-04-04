@@ -7,6 +7,7 @@ import { ChevronLeft, Upload, Book, User, Tag, FileText } from 'lucide-react-nat
 import { telegramService } from '@/services/telegramService';
 import { MetadataStore } from '@/core/storage/storage';
 import { FileStore } from '@/core/storage/fileStore';
+import { UploadStore } from '@/core/store/uploadStore';
 import { useTranslation } from '@/core/i18n/I18nContext';
 import { CATEGORY_MAP } from '@/core/utils/categoryUtils';
 
@@ -23,14 +24,23 @@ export default function UploadForm() {
   const [author, setAuthor] = useState('');
   const [category, setCategory] = useState('other');
   const [description, setDescription] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(UploadStore.getIsUploading());
+  const [uploadProgress, setUploadProgress] = useState(UploadStore.getProgress());
   const [titleFocused, setTitleFocused] = useState(false);
   const [authorFocused, setAuthorFocused] = useState(false);
   
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
+  React.useEffect(() => {
+    const sub = UploadStore.subscribe(() => {
+      setIsUploading(UploadStore.getIsUploading());
+      setUploadProgress(UploadStore.getProgress());
+    });
+    return () => sub();
+  }, []);
+
   const handleUpload = async () => {
+    if (UploadStore.getIsUploading()) return;
     if (!title.trim()) {
       showModal({ type: 'error', title: t('upload.errorTitle'), message: t('upload.errorMsg') });
       return;
@@ -39,18 +49,24 @@ export default function UploadForm() {
     Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true }).start();
     setIsUploading(true);
     setUploadProgress(0);
+
+    const extension = name.split('.').pop() || '';
+    const finalFileName = extension ? `${title}.${extension}` : title;
+    UploadStore.startUpload(finalFileName, { uri, name, size });
+
     try {
       const displayCategory = (CATEGORY_MAP as any)[category] || category;
-      const extension = name.split('.').pop() || '';
-      const finalFileName = extension ? `${title}.${extension}` : title;
-
+      
       const uploadRes = await telegramService.uploadFile(
         uri, 
         finalFileName, 
         displayCategory, 
         author, 
         description,
-        (progress) => setUploadProgress(progress)
+        (progress) => {
+          setUploadProgress(progress);
+          UploadStore.updateProgress(progress);
+        }
       );
       const hash = await FileStore.calculateHash(uri);
 
@@ -68,9 +84,11 @@ export default function UploadForm() {
         addedAt: Date.now(),
       });
 
+      UploadStore.endUpload();
       showModal({ type: 'success', title: t('common.success'), message: t('upload.successMsg') });
       router.replace('/(tabs)');
     } catch (error) {
+      UploadStore.endUpload();
       showModal({ type: 'error', title: t('upload.errorTitle'), message: t('upload.uploadError') });
     } finally {
       setIsUploading(false);
