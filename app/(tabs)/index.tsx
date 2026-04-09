@@ -88,6 +88,7 @@ export default function IndexScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const fabAnim = useRef(new Animated.Value(1)).current;
+  const categoryListRef = useRef<FlatList>(null);
 
   const [wifiOnly, setWifiOnly] = useState(DownloadStore.getDownloadMode() === 'wifi');
 
@@ -457,38 +458,55 @@ export default function IndexScreen() {
       </View>
 
       {/* ── Categories ── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        showsVerticalScrollIndicator={false}
-        style={{ height: 44, flexGrow: 0, flexShrink: 0 }}
-        contentContainerStyle={{
-          paddingHorizontal: 14,
-          gap: 8,
-          alignItems: 'center',
-        }}
-      >
-        {CATEGORIES.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            onPress={() => setSelectedCategory(cat)}
-            style={{
-              height: 32,
-              paddingHorizontal: 14,
-              borderRadius: 16,
-              borderWidth: 1,
-              justifyContent: 'center',
-              alignItems: 'center',
-              backgroundColor: selectedCategory === cat ? colors.primary + '15' : colors.card,
-              borderColor: selectedCategory === cat ? colors.primary : colors.border,
-            }}
-          >
-            <Text style={{ fontSize: 12, fontWeight: '600', color: selectedCategory === cat ? colors.primary : colors.textDim }}>
-              {cat === "all" ? t('index.categoryAll') : t(`categories.${cat}`)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={{ height: 44, flexGrow: 0, flexShrink: 0 }}>
+        <FlatList
+          ref={categoryListRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={CATEGORIES}
+          keyExtractor={(cat) => cat}
+          contentContainerStyle={{
+            paddingHorizontal: 14,
+            gap: 8,
+            alignItems: 'center',
+          }}
+          renderItem={({ item: cat, index }) => (
+            <TouchableOpacity
+              onPress={() => {
+                setSelectedCategory(cat);
+                categoryListRef.current?.scrollToIndex({
+                  index,
+                  animated: true,
+                  viewPosition: 0.5,
+                });
+              }}
+              style={{
+                height: 32,
+                paddingHorizontal: 14,
+                borderRadius: 16,
+                borderWidth: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: selectedCategory === cat ? colors.primary + '15' : colors.card,
+                borderColor: selectedCategory === cat ? colors.primary : colors.border,
+              }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '600', color: selectedCategory === cat ? colors.primary : colors.textDim }}>
+                {cat === "all" ? t('index.categoryAll') : t(`categories.${cat}`)}
+              </Text>
+            </TouchableOpacity>
+          )}
+          onScrollToIndexFailed={(info) => {
+            setTimeout(() => {
+              categoryListRef.current?.scrollToIndex({
+                index: info.index,
+                animated: true,
+                viewPosition: 0.5,
+              });
+            }, 100);
+          }}
+        />
+      </View>
 
 
       {/* ── Book list / Offline ── */}
