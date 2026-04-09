@@ -16,6 +16,7 @@ import { TransitionOverlay } from '@/components/TransitionOverlay';
 import { CustomSplashScreen } from '@/components/CustomSplashScreen';
 import { SocketService } from '@/core/services/socketService';
 import { UpdateService, AppUpdateData } from '@/core/services/updateService';
+import { pushNotificationService } from '@/core/services/pushNotificationService';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 
@@ -98,6 +99,11 @@ export default function RootLayout() {
     });
     // Connexion permanente au webhook Push Notification OTA
     SocketService.init();
+
+    // Enregistrement pour les notifications Push (Nouvel upload, etc.)
+    pushNotificationService.registerForPushNotificationsAsync().catch(e => {
+       console.log('[RootLayout] Erreur init push:', e);
+    });
 
     const unsubscribe = SocketService.subscribeToAppUpdates((data: AppUpdateData) => {
       const CURRENT_VERSION = Constants.expoConfig?.version || (Constants as any).manifest?.version || '1.0.0';
