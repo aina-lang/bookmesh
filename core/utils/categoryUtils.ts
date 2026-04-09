@@ -18,7 +18,10 @@ export const CATEGORY_MAP: Record<string, string> = {
  */
 export function getCategoryKey(displayValue: string): string {
   if (!displayValue) return 'other';
-  // Nettoyage basique (ex: supprimer le point de splite si on ne l'utilise pas ici)
+  // Si c'est déjà une clé valide, on la retourne directement
+  if (CATEGORY_MAP[displayValue]) return displayValue;
+  
+  // Nettoyage basique pour les anciennes données (ex: "Roman / Fiction")
   const entry = Object.entries(CATEGORY_MAP).find(([_, val]) => 
     val.toLowerCase() === displayValue.toLowerCase() || 
     displayValue.toLowerCase().startsWith(val.split(' ')[0].toLowerCase())

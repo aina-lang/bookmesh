@@ -20,10 +20,11 @@ export default function UploadForm() {
   const { uri, name, size } = useLocalSearchParams() as { uri: string; name: string; size: string };
   const router = useRouter();
 
-  const [title, setTitle] = useState(name.split('.').slice(0, -1).join('.') || name);
-  const [author, setAuthor] = useState('');
-  const [category, setCategory] = useState('other');
-  const [description, setDescription] = useState('');
+  const existingMetadata = UploadStore.getMetadata();
+  const [title, setTitle] = useState(existingMetadata?.title || name.split('.').slice(0, -1).join('.') || name);
+  const [author, setAuthor] = useState(existingMetadata?.author || '');
+  const [category, setCategory] = useState(existingMetadata?.category || 'other');
+  const [description, setDescription] = useState(existingMetadata?.description || '');
   const [isUploading, setIsUploading] = useState(UploadStore.getIsUploading());
   const [uploadProgress, setUploadProgress] = useState(UploadStore.getProgress());
   const [titleFocused, setTitleFocused] = useState(false);
@@ -50,17 +51,16 @@ export default function UploadForm() {
     setIsUploading(true);
     setUploadProgress(0);
 
-    const extension = name.split('.').pop() || '';
+     const extension = name.split('.').pop() || '';
     const finalFileName = extension ? `${title}.${extension}` : title;
-    UploadStore.startUpload(finalFileName, { uri, name, size });
+    const metadata = { title, author, category, description };
+    UploadStore.startUpload(finalFileName, { uri, name, size }, metadata);
 
     try {
-      const displayCategory = (CATEGORY_MAP as any)[category] || category;
-      
       const uploadRes = await telegramService.uploadFile(
         uri, 
         finalFileName, 
-        displayCategory, 
+        category, 
         author, 
         description,
         (progress) => {
@@ -74,7 +74,7 @@ export default function UploadForm() {
         id: `tg-${uploadRes.messageId || hash}`,
         title,
         author: author || t('upload.unknownAuthor'),
-        category: displayCategory,
+        category: category,
         description,
         format: name.split('.').pop()?.toLowerCase() || 'unknown',
         fileSize: parseInt(size, 10) || 0,
@@ -127,6 +127,7 @@ export default function UploadForm() {
             }}
             value={title} onChangeText={setTitle} onFocus={() => setTitleFocused(true)} onBlur={() => setTitleFocused(false)}
             placeholder={t('upload.placeholderTitle')} placeholderTextColor={colors.textMuted}
+            editable={!isUploading}
           />
         </View>
 
@@ -139,6 +140,7 @@ export default function UploadForm() {
             }}
             value={author} onChangeText={setAuthor} onFocus={() => setAuthorFocused(true)} onBlur={() => setAuthorFocused(false)}
             placeholder={t('upload.placeholderAuthor')} placeholderTextColor={colors.textMuted}
+            editable={!isUploading}
           />
         </View>
 
@@ -147,11 +149,14 @@ export default function UploadForm() {
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {Object.keys(CATEGORY_MAP).map((catKey) => (
               <TouchableOpacity
-                key={catKey} onPress={() => setCategory(catKey)}
+                key={catKey} 
+                onPress={() => setCategory(catKey)}
+                disabled={isUploading}
                 style={{
                   paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99, borderWidth: 1,
                   backgroundColor: category === catKey ? colors.primary + '20' : colors.card,
-                  borderColor: category === catKey ? colors.primary : colors.border
+                  borderColor: category === catKey ? colors.primary : colors.border,
+                  opacity: isUploading && category !== catKey ? 0.5 : 1
                 }}
               >
                 <Text style={{ fontSize: 12, fontWeight: '700', color: category === catKey ? colors.primary : colors.textDim }}>{t(`categories.${catKey}`)}</Text>
@@ -170,6 +175,7 @@ export default function UploadForm() {
             value={description} onChangeText={setDescription}
             placeholder={t('upload.placeholderSummary')} placeholderTextColor={colors.textMuted}
             multiline numberOfLines={4}
+            editable={!isUploading}
           />
         </View>
       </ScrollView>

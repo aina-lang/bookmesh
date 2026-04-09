@@ -4,17 +4,28 @@ import { BlurView } from 'expo-blur';
 import { Tabs, useRouter } from 'expo-router';
 import { Globe, Plus, Library } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback } from 'react';
-import { Text, View, StyleSheet, Platform, TouchableOpacity } from 'react-native';
+import { Text, View, StyleSheet, Platform, TouchableOpacity, ActivityIndicator } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { useModal } from '@/core/context/ModalContext';
 import { useTranslation } from '@/core/i18n/I18nContext';
+import { UploadStore } from '@/core/store/uploadStore';
+import { Upload } from 'lucide-react-native';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming, 
+  withRepeat, 
+  withSequence,
+  Easing,
+  interpolate
+} from 'react-native-reanimated';
 
 const ORANGE = '#f97316';
 const BAR_BOTTOM = 16;
 const BAR_HEIGHT = 64;
 // FAB est centré horizontalement, positionné au-dessus de la tab bar
-const FAB_SIZE = 58;
-const FAB_BOTTOM = BAR_BOTTOM + 40;
+const FAB_SIZE = 70;
+const FAB_BOTTOM = BAR_BOTTOM + 30;
 
 /* ─── Badge ─── */
 function DownloadBadge() {
@@ -49,14 +60,134 @@ function TabIcon({ focused, icon, label, color }: { focused: boolean; icon: Reac
 }
 
 /* ─── FAB ─── */
-function FAB({ onPress }: { onPress: () => void }) {
+function FAB({ onDefaultPress }: { onDefaultPress: () => void }) {
+  const { colors, theme } = useTheme();
+  const router = useRouter();
+  
+  const [isUploading, setIsUploading] = useState(UploadStore.getIsUploading());
+  const [progress, setProgress] = useState(UploadStore.getProgress());
+
+  useEffect(() => {
+    return UploadStore.subscribe(() => {
+      setIsUploading(UploadStore.getIsUploading());
+      setProgress(UploadStore.getProgress());
+    });
+  }, []);
+
+  const waveAnim = useSharedValue(0);
+
+  useEffect(() => {
+    if (isUploading) {
+      waveAnim.value = withRepeat(
+        withTiming(1, { duration: 2000, easing: Easing.linear }),
+        -1,
+        false
+      );
+    } else {
+      waveAnim.value = 0;
+    }
+  }, [isUploading]);
+
+  const animatedWaveStyle = useAnimatedStyle(() => {
+    const translateY = interpolate(progress, [0, 1], [FAB_SIZE, 0]);
+    return {
+      top: translateY,
+      opacity: isUploading ? 1 : 0,
+    };
+  });
+
+  const handlePress = () => {
+    if (isUploading) {
+      const params = UploadStore.getParams();
+      if (params) {
+        router.push({
+          pathname: '/upload-form',
+          params
+        });
+      }
+    } else {
+      onDefaultPress();
+    }
+  };
+
+  const FABContent = ({ color, showSpinner }: { color: string; showSpinner: boolean }) => (
+    <View style={{ alignItems: 'center', justifyContent: 'center', height: FAB_SIZE, width: FAB_SIZE }}>
+      {showSpinner ? (
+        <ActivityIndicator size="small" color={color} />
+      ) : (
+        <>
+          <Upload size={22} color={color} strokeWidth={2.5} />
+          <Text style={{ color, fontSize: 10, fontWeight: '900', marginTop: 1 }}>
+            {Math.round(progress * 100)}%
+          </Text>
+        </>
+      )}
+    </View>
+  );
+
+  const animatedWavePulseStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: interpolate(waveAnim.value, [0, 1], [1, 2.5]) }],
+      opacity: interpolate(waveAnim.value, [0, 0.5, 1], [0, 0.4, 0]),
+    };
+  });
+
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={handlePress}
       activeOpacity={0.85}
-      style={styles.fab}
+      style={[styles.fab, { backgroundColor: isUploading ? colors.card : ORANGE, overflow: 'hidden' }]}
     >
-      <Plus size={26} color="#fff" strokeWidth={2.5} />
+      {/* Wave Pulse */}
+      {isUploading && (
+        <Animated.View 
+          style={[
+            {
+              position: 'absolute',
+              width: FAB_SIZE,
+              height: FAB_SIZE,
+              borderRadius: FAB_SIZE / 2,
+              backgroundColor: ORANGE,
+            },
+            animatedWavePulseStyle
+          ]}
+        />
+      )}
+      
+      {isUploading ? (
+        <View style={{ width: FAB_SIZE, height: FAB_SIZE, borderRadius: FAB_SIZE / 2, overflow: 'hidden' }}>
+          {/* Base Layer: Orange Text */}
+          <FABContent color={ORANGE} showSpinner={progress >= 1} />
+
+          {/* Progress Layer: White Text, Clipped by Wave */}
+          <Animated.View 
+            style={[
+              {
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: ORANGE,
+                overflow: 'hidden',
+              },
+              animatedWaveStyle
+            ]}
+          >
+            {/* We offset this back to keep it centered in the FAB */}
+            <View style={{ 
+              position: 'absolute', 
+              bottom: 0, 
+              left: 0,
+              width: FAB_SIZE,
+              height: FAB_SIZE 
+            }}>
+               <FABContent color="#fff" showSpinner={progress >= 1} />
+            </View>
+          </Animated.View>
+        </View>
+      ) : (
+        <Plus size={26} color="#fff" strokeWidth={2.5} />
+      )}
     </TouchableOpacity>
   );
 }
@@ -179,7 +310,7 @@ export default function TabLayout() {
       </Tabs>
 
       {/* FAB centré au-dessus de la tab bar */}
-      <FAB onPress={importBook} />
+      <FAB onDefaultPress={importBook} />
     </View>
   );
 }

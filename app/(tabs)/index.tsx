@@ -200,9 +200,14 @@ export default function IndexScreen() {
       setWifiOnly(DownloadStore.getDownloadMode() === 'wifi');
     });
 
+    let wasUploading = UploadStore.getIsUploading();
     const uploadSub = UploadStore.subscribe(() => {
-      setIsUploading(UploadStore.getIsUploading());
-      setUploadProgress(UploadStore.getProgress());
+      const currentlyUploading = UploadStore.getIsUploading();
+      if (wasUploading && !currentlyUploading) {
+        load(true);
+      }
+      wasUploading = currentlyUploading;
+      setIsUploading(currentlyUploading);
     });
 
     const socketSub = SocketService.subscribeToAppUpdates((data: AppUpdateData) => {
@@ -233,7 +238,6 @@ export default function IndexScreen() {
     }
   }, [isOffline, isWifi, wifiOnly]);
 
-  const [uploadProgress, setUploadProgress] = useState(UploadStore.getProgress());
 
   const handleDownload = async (book: BookMetadata) => {
     const mode = DownloadStore.getDownloadMode();
@@ -401,35 +405,6 @@ export default function IndexScreen() {
          
         </View>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-          {isUploading && (
-            <TouchableOpacity 
-              onPress={() => {
-                const params = UploadStore.getParams();
-                if (params) {
-                  router.push({
-                    pathname: '/upload-form',
-                    params
-                  });
-                }
-              }}
-              style={{ 
-                flexDirection: 'row', 
-                alignItems: 'center', 
-                backgroundColor: colors.primary + '15', 
-                paddingHorizontal: 12, 
-                paddingVertical: 8, 
-                borderRadius: 20,
-                borderWidth: 1,
-                borderColor: colors.primary + '30',
-                gap: 8,
-              }}
-            >
-              <Upload size={14} color={colors.primary} />
-              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>
-                {Math.round(uploadProgress * 100)}%
-              </Text>
-            </TouchableOpacity>
-          )}
 
           <TouchableOpacity
             onPress={() => router.push('/settings')}

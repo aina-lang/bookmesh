@@ -530,6 +530,8 @@ export const mg: typeof fr = {
     download: "Ampidino",
     pause: "Ajanony",
     resume: "Tohizo",
+    shareTitle: "Hizara {{title}}",
+    shareMessage: "Jereo ity boky ity ao amin'ny ZaraBook !",
   },
   settings: {
     title: "Settings",
@@ -733,6 +735,8 @@ export const de: typeof fr = {
     download: "DOWNLOAD",
     pause: "PAUSE",
     resume: "FORTSETZEN",
+    shareTitle: "Teilen {{title}}",
+    shareMessage: "Schau dir dieses Buch auf ZaraBook an!",
   },
   settings: {
     title: "Einstellungen",
