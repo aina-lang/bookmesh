@@ -50,6 +50,9 @@ export class TelegramService {
         throw new Error("L'upload n'a retourné aucune réponse.");
       }
 
+      console.log("[TelegramService] HTTP Status: ", response.status);
+      console.log("[TelegramService] Response Body: ", response.body);
+
       let responseData;
       try {
         responseData = JSON.parse(response.body);
